@@ -3,3 +3,4 @@ __pycache__/
 ood_topology/data/
 ood_topology/cache/data_*.pt
 ood_topology/cache/pd_*.pt
+~$*
