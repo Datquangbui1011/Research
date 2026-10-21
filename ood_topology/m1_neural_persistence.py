@@ -25,14 +25,15 @@ def normalized_np(pds, min_edges, p=2):
     pds: list over layers of (B, N_l) MST weights (decreasing); min_edges: list of (B,) minimum
     edge weight per layer. Weights are divided by the largest weight in the whole network
     (Rieck Alg. 1); PD points are (1, w'), persistence 1 - w'; NP_l = ||1 - w'||_p is divided by
-    its upper bound (max w' - min w') * (|V_l| - 1)^(1/p) (Rieck Thm. 1) and averaged over layers.
+    its upper bound (1 - min w') * (|V_l| - 1)^(1/p) (Rieck Thm. 1 with every vertex born at 1),
+    so each layer's normalized NP lies in [0, 1], and the layers are averaged.
     """
     gmax = torch.stack([pd[:, 0] for pd in pds], 1).max(1).values.clamp_min(1e-12)
     per_layer = []
     for pd, mn in zip(pds, min_edges):
         w = pd / gmax[:, None]
         np_l = ((1 - w) ** p).sum(1) ** (1 / p)
-        bound = (w[:, 0] - mn / gmax) * (pd.shape[1]) ** (1 / p)  # |V_l| - 1 = #MST edges
+        bound = (1 - mn / gmax) * (pd.shape[1]) ** (1 / p)  # |V_l| - 1 = #MST edges
         per_layer.append(np_l / bound.clamp_min(1e-12))
     per_layer = torch.stack(per_layer, 1)
     return per_layer.mean(1), per_layer
@@ -88,16 +89,17 @@ def main():
         vals[name], scores[name], msp[name] = npv, score(npv, logits), msp_score(logits)
 
     rows = []
-    print(f"{'OOD set':14s} {'NP mean':>8s} | {'NP AUROC':>8s} {'FPR95':>6s} | {'MSP AUROC':>9s} {'FPR95':>6s}")
+    print(f"{'OOD set':14s} {'NP mean':>8s} | {'NP AUROC':>8s} {'FPR95':>6s} | {'raw AUROC':>9s} | {'MSP AUROC':>9s} {'FPR95':>6s}")
     print(f"{'MNIST (ID)':14s} {vals['MNIST'].mean():8.4f} |")
     for name in eval_sets()[1:]:
         a, f = ood_metrics(scores["MNIST"], scores[name])
+        ar, _ = ood_metrics(vals["MNIST"], vals[name])  # diagnostic: raw NP, higher = OOD
         ab, fb = ood_metrics(msp["MNIST"], msp[name])
         rows.append({"ood": name, "np_mean": float(vals[name].mean()), "auroc": a, "fpr95": f,
-                     "msp_auroc": ab, "msp_fpr95": fb})
-        print(f"{name:14s} {vals[name].mean():8.4f} | {a:8.1f} {f:6.1f} | {ab:9.1f} {fb:6.1f}")
-    avg = {k: float(np.mean([r[k] for r in rows])) for k in ("auroc", "fpr95", "msp_auroc", "msp_fpr95")}
-    print(f"{'average':14s} {'':8s} | {avg['auroc']:8.1f} {avg['fpr95']:6.1f} | {avg['msp_auroc']:9.1f} {avg['msp_fpr95']:6.1f}")
+                     "raw_auroc": ar, "msp_auroc": ab, "msp_fpr95": fb})
+        print(f"{name:14s} {vals[name].mean():8.4f} | {a:8.1f} {f:6.1f} | {ar:9.1f} | {ab:9.1f} {fb:6.1f}")
+    avg = {k: float(np.mean([r[k] for r in rows])) for k in ("auroc", "fpr95", "raw_auroc", "msp_auroc", "msp_fpr95")}
+    print(f"{'average':14s} {'':8s} | {avg['auroc']:8.1f} {avg['fpr95']:6.1f} | {avg['raw_auroc']:9.1f} | {avg['msp_auroc']:9.1f} {avg['msp_fpr95']:6.1f}")
 
     out = {"seed": seed, "np_original": float(np_orig.item()),
            "np_original_per_layer": np_orig_layers.numpy()[0].tolist(),
