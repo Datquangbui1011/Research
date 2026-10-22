@@ -162,3 +162,58 @@ times. Entries are the % of repeats where H0 ("same distribution") is rejected a
   dilutes it.
 - Compared with [2], pTU needs 30 forward passes per input but no class-conditional
   reference, so it does not depend on the prediction being correct.
+
+### [4] Persistent Laplacian (Wolf et al., 2025; PETLS; Botnan & Dong): `m4_persistent_laplacian.py`
+
+**Reduction.** Each layer's activation graph |W(j,i)·x(i)| from [2] is filtered by superlevel
+sets: K_t = all neurons + the edges with weight ≥ t. Every vertex exists from the start, so for
+K_s ⊆ K_t the 0-dim persistent Laplacian is Δ₀^{K_s,K_t} = Δ₀,up = **L(K_t), the ordinary graph
+Laplacian** (the down part is 0 in dimension 0). A bipartite graph has no triangles, so dimension
+0 is the only non-trivial one (as the report notes). Hence:
+- **zero eigenvalues** of L(K_t) = β₀(K_t), the persistent Betti number. This is the same
+  information as the PD of [1]–[3], read at fixed thresholds (a Betti curve);
+- **nonzero eigenvalues** = what the persistent Laplacian adds on top of PH.
+
+**Features.**
+- Thresholds: 3 per layer, the 50/75/90 % quantiles of the nonzero training MST weights of
+  that layer (most layer-1 weights are 0 because of black pixels, which made the first
+  threshold 0 and the graph complete).
+- At each threshold: β₀, number of edges (= trace/2), smallest nonzero eigenvalue, largest
+  eigenvalue, and std of the nonzero eigenvalues.
+- Score = mean squared z-score against training inputs of the same predicted class (as in TU).
+- Isolated vertices are counted directly and removed before the eigendecomposition.
+- Evaluated on the first 1000 images of each set; TU and MSP are recomputed on the same 1000.
+
+| OOD set | **PL full** | β₀ only (PH part) | nonzero spectrum only | TU [2] | MSP | PL-full L1 / L2 / L3 |
+|---|---|---|---|---|---|---|
+| Fashion-MNIST | 82.3 / 51.1 | 86.2 / 46.4 | 80.1 / 54.8 | 84.9 / 56.4 | 67.5 / 81.5 | 82.4 / 76.5 / 69.8 |
+| KMNIST | 76.3 / 72.4 | 79.2 / 66.4 | 74.7 / 75.4 | 75.6 / 76.1 | 83.8 / 59.8 | 72.0 / 65.0 / 65.0 |
+| CIFAR-10 | 73.5 / 67.5 | 75.0 / 63.9 | 72.1 / 70.7 | 80.0 / 75.4 | 62.6 / 84.6 | 79.1 / 73.5 / 54.6 |
+| SVHN | 83.9 / 46.4 | 83.5 / 51.0 | 83.0 / 48.3 | 82.9 / 66.0 | 53.4 / 94.4 | 88.6 / 80.9 / 61.6 |
+| Gaussian | 99.1 / 2.0 | 99.2 / 1.1 | 98.9 / 4.0 | 98.1 / 2.4 | 92.6 / 57.7 | 92.6 / 98.9 / 97.6 |
+| Uniform | 85.1 / 96.3 | 96.2 / 26.8 | 76.2 / 99.6 | 70.9 / 99.8 | 43.1 / 99.6 | 95.4 / 69.8 / 25.0 |
+| MNIST-flip | 71.7 / 91.2 | 81.5 / 82.5 | 66.9 / 93.7 | 64.8 / 96.2 | 80.0 / 69.2 | 76.7 / 57.7 / 50.2 |
+| **average** | **81.7 / 61.0** | **85.8 / 48.3** | 78.8 / 63.8 | 79.6 / 67.5 | 69.0 / 78.1 | 83.8 / 74.6 / 60.5 |
+
+(Entries: AUROC ↑ / FPR95 ↓.)
+
+![PL](results/m4_persistent_laplacian_s0.png)
+
+**Takeaways for [4]:**
+- **The full persistent-Laplacian score beats TU and MSP** (81.7 vs 79.6 and 69.0 AUROC on the
+  same images).
+- **The gain comes from the harmonic (PH) part, not the extra eigenvalues.** β₀ alone gives
+  85.8, the best single-sample score so far, with the lowest FPR95 (48.3). Adding the nonzero
+  eigenvalues *lowers* it to 81.7, and they score only 78.8 on their own.
+- Why: the threshold graphs are small and unweighted, so their nonzero eigenvalues take a few
+  discrete values (the spiky middle and right panels). This adds noise rather than signal.
+  The "extra geometry" of the persistent Laplacian does not pay off on these graphs.
+- **β₀ at fixed thresholds beats TU's Wasserstein distance** (85.8 vs 79.6), most clearly on
+  Uniform (96.2 vs 70.9) and MNIST-flip (81.5 vs 64.8). Both use the same PD. The difference is
+  that TU compares PDs after sorting, while a Betti curve at fixed thresholds keeps the absolute
+  scale and is z-scored per threshold, so every layer and threshold counts equally (compare
+  the TU-norm result in [2]).
+- On these graphs, the theory papers' main points (stability of the up/down Laplacians, fast
+  algorithms for non-branching complexes) do not matter: in dimension 0 the persistent
+  Laplacian is just a graph Laplacian, and one eigendecomposition per graph takes 48 s for
+  all 10 000 inputs.
