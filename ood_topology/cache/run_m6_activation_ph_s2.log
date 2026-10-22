@@ -1,0 +1,60 @@
+  computed diagrams and SW distances for m = 10
+  computed diagrams and SW distances for m = 20
+  computed diagrams and SW distances for m = 50
+
+batch size m = 10: 200 ID vs 200 OOD batches (AUROC / FPR95)
+OOD set        | SW to reference |   layer profile | [5] descriptors |   TU batch mean
+FashionMNIST   |   60.8 /  92.5 |   71.9 /  78.5 |   64.6 /  89.5 |   99.4 /   4.5
+KMNIST         |   87.4 /  58.5 |   79.1 /  71.5 |   94.6 /  31.0 |   94.5 /  34.5
+CIFAR10        |   93.0 /  30.5 |   85.3 /  68.0 |   96.6 /  17.0 |   99.5 /   2.5
+SVHN           |  100.0 /   0.0 |   98.8 /   0.5 |  100.0 /   0.0 |   99.5 /   3.0
+Gaussian       |  100.0 /   0.0 |   99.6 /   0.0 |  100.0 /   0.0 |  100.0 /   0.0
+Uniform        |  100.0 /   0.0 |   98.2 /   0.0 |  100.0 /   0.0 |   98.8 /   6.0
+MNIST-flip     |  100.0 /   0.0 |   98.2 /   2.5 |  100.0 /   0.0 |   76.7 /  88.0
+average        |   91.6 /  25.9 |   90.1 /  31.6 |   93.7 /  19.6 |   95.5 /  19.8
+
+batch size m = 20: 100 ID vs 100 OOD batches (AUROC / FPR95)
+OOD set        | SW to reference |   layer profile | [5] descriptors |   TU batch mean
+FashionMNIST   |   93.7 /  35.0 |   89.1 /  62.0 |   92.1 /  39.0 |  100.0 /   0.0
+KMNIST         |   99.3 /   3.0 |   89.7 /  44.0 |  100.0 /   0.0 |   98.9 /   6.0
+CIFAR10        |  100.0 /   0.0 |   94.8 /  33.0 |  100.0 /   0.0 |   99.9 /   1.0
+SVHN           |  100.0 /   0.0 |   99.9 /   0.0 |  100.0 /   0.0 |  100.0 /   0.0
+Gaussian       |  100.0 /   0.0 |   99.9 /   0.0 |  100.0 /   0.0 |  100.0 /   0.0
+Uniform        |  100.0 /   0.0 |   99.0 /   0.0 |  100.0 /   0.0 |  100.0 /   0.0
+MNIST-flip     |  100.0 /   0.0 |   99.3 /   0.0 |  100.0 /   0.0 |   84.1 /  80.0
+average        |   99.0 /   5.4 |   96.0 /  19.9 |   98.9 /   5.6 |   97.6 /  12.4
+
+batch size m = 50: 40 ID vs 40 OOD batches (AUROC / FPR95)
+OOD set        | SW to reference |   layer profile | [5] descriptors |   TU batch mean
+FashionMNIST   |   99.8 /   0.0 |   97.1 /  12.5 |   99.6 /   0.0 |  100.0 /   0.0
+KMNIST         |  100.0 /   0.0 |   87.6 /  55.0 |  100.0 /   0.0 |  100.0 /   0.0
+CIFAR10        |  100.0 /   0.0 |   97.9 /   5.0 |  100.0 /   0.0 |  100.0 /   0.0
+SVHN           |  100.0 /   0.0 |  100.0 /   0.0 |  100.0 /   0.0 |  100.0 /   0.0
+Gaussian       |  100.0 /   0.0 |  100.0 /   0.0 |  100.0 /   0.0 |  100.0 /   0.0
+Uniform        |  100.0 /   0.0 |   98.1 /   2.5 |  100.0 /   0.0 |  100.0 /   0.0
+MNIST-flip     |  100.0 /   0.0 |   96.4 /  20.0 |  100.0 /   0.0 |   94.6 /  22.5
+average        |  100.0 /   0.0 |   96.7 /  13.6 |   99.9 /   0.0 |   99.2 /   3.2
+
+mean SW distance to MNIST-train reference diagrams, m = 50:
+  set                   input:H0      input:H1    hidden1:H0    hidden1:H1    hidden2:H0    hidden2:H1     logits:H0     logits:H1
+  calibration (train)         17.58          3.16         34.62          5.48         42.57          7.20         72.11         14.10
+  MNIST                    17.51          3.06         33.53          5.28         41.24          7.30         71.53         13.92
+  FashionMNIST             46.13          3.23         89.16          5.56         73.57          7.94        106.40         16.51
+  KMNIST                   95.53          3.69         54.54          5.45         48.88          8.95         83.84         17.23
+  CIFAR10                  84.80          3.72        122.89          6.81         92.53          9.33        137.99         18.22
+  SVHN                    136.64          3.80        193.13          6.22        173.04          9.30        268.12         18.69
+  Gaussian                 48.63          3.33        199.58          7.79        223.30         10.37        343.45         19.77
+  Uniform                 147.25          5.72        147.24          9.05        180.09         11.45        276.82         22.18
+  MNIST-flip              244.53          6.13         59.31          5.37         52.99          8.67         90.16         17.71
+
+mean layer-to-layer SW profile, m = 50:
+  set                input->hidden1:H0   input->hidden1:H1 hidden1->hidden2:H0 hidden1->hidden2:H1  hidden2->logits:H0  hidden2->logits:H1
+  calibration (train)              131.35                7.73               45.41                8.08              214.20               17.80
+  MNIST                         133.56                7.52               42.21                7.82              216.10               17.51
+  FashionMNIST                   82.77                4.47               44.83                6.59              200.20               14.26
+  KMNIST                         95.44                5.59               34.55                7.32              223.33               18.45
+  CIFAR10                        88.28                2.83               58.79                5.82              187.91               11.75
+  SVHN                           58.44                1.64               44.25                3.63              114.92                7.66
+  Gaussian                      120.01                3.66               36.40                3.42               95.69                9.06
+  Uniform                       150.54                6.74               44.68                4.74              133.93               12.95
+  MNIST-flip                     84.80                5.88               38.48                7.21              239.87               21.52

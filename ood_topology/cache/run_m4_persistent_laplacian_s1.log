@@ -1,0 +1,31 @@
+  computed PL spectra for train
+  computed PL spectra for MNIST
+  computed PL spectra for FashionMNIST
+  computed PL spectra for KMNIST
+  computed PL spectra for CIFAR10
+  computed PL spectra for SVHN
+  computed PL spectra for Gaussian
+  computed PL spectra for Uniform
+  computed PL spectra for MNIST-flip
+
+thresholds (MST-weight quantiles (0.5, 0.75, 0.9)) per layer: ['0.508', '0.678', '0.888']; ['1.359', '2.346', '3.394']; ['5.389', '7.8', '10.793']
+OOD set        |               PL full |  beta0 only (PH info) | nonzero spectrum only |                TU [2] |                   MSP | PL-full per-layer AUROC
+FashionMNIST   |           83.5 /  49.9 |           84.6 /  48.9 |           82.4 /  51.3 |           84.1 /  57.0 |           72.5 /  76.9 |  83.1  75.9  78.6
+KMNIST         |           72.4 /  83.1 |           75.8 /  79.7 |           70.5 /  84.5 |           69.8 /  87.1 |           84.4 /  61.0 |  68.7  59.2  64.2
+CIFAR10        |           78.0 /  63.0 |           79.6 /  62.6 |           76.3 /  66.4 |           82.1 /  66.3 |           77.6 /  76.7 |  80.8  69.1  70.3
+SVHN           |           89.9 /  40.6 |           88.1 /  50.4 |           89.4 /  41.0 |           82.9 /  62.9 |           79.0 /  82.1 |  91.3  79.4  73.2
+Gaussian       |           99.2 /   0.7 |           99.5 /   0.8 |           98.9 /   2.4 |           95.7 /  34.9 |           93.3 /  50.9 |  96.3  98.9  95.9
+Uniform        |           88.0 /  86.4 |           96.3 /  32.0 |           81.3 /  95.7 |           89.1 /  87.2 |           74.6 /  86.8 |  92.0  70.0  81.5
+MNIST-flip     |           67.5 /  94.3 |           77.9 /  91.4 |           62.7 /  95.5 |           61.2 /  98.4 |           81.8 /  65.7 |  70.2  52.5  55.3
+average        |           82.6 /  59.7 |           86.0 /  52.3 |           80.2 /  62.4 |           80.7 /  70.5 |           80.5 /  71.4 |  83.2  72.1  74.1
+
+mean features, layer 1, threshold q=0.75:        beta0        edges  lambda_min+   lambda_max   lambda_std
+  train             794.643       55.288        0.128        7.165        1.598
+  MNIST             794.844       55.130        0.134        7.139        1.592
+  FashionMNIST      748.409      106.307        0.160        9.231        1.837
+  KMNIST            768.953       83.937        0.076        8.303        1.753
+  CIFAR10           763.071       89.107        0.231        8.334        1.637
+  SVHN              776.651       76.018        0.489        6.394        1.258
+  Gaussian          827.288       20.738        0.536        4.075        0.935
+  Uniform           726.657      124.529        0.021        8.242        1.781
+  MNIST-flip        754.645       97.435        0.029        7.927        1.747

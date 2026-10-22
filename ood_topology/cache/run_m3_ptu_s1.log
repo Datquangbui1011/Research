@@ -1,0 +1,31 @@
+  computed pTU for train
+  computed pTU for MNIST
+  computed pTU for FashionMNIST
+  computed pTU for KMNIST
+  computed pTU for CIFAR10
+  computed pTU for SVHN
+  computed pTU for Gaussian
+  computed pTU for Uniform
+  computed pTU for MNIST-flip
+
+(a) per-sample   pTU mean |       pTU AUROC FPR95 |        MI AUROC FPR95 |   Entropy AUROC FPR95 | MSP (BMA) AUROC FPR95 | pTU per-layer AUROC
+MNIST (ID)       0.30604 | (train pTU mean 0.30252)
+FashionMNIST     0.73483 |            80.2  39.9 |            78.4  67.8 |            74.1  76.0 |            74.2  74.8 |  87.2  76.9  80.0
+KMNIST           0.57004 |            80.9  53.2 |            88.4  48.2 |            85.4  59.7 |            85.3  59.7 |  93.0  75.0  79.8
+CIFAR10          0.92640 |            94.1  19.9 |            83.3  60.8 |            78.4  75.2 |            78.7  73.7 |  84.1  87.4  94.8
+SVHN             0.78291 |            79.2  41.1 |            84.7  71.8 |            80.7  81.8 |            81.0  80.3 |  65.3  68.3  81.3
+Gaussian         0.26285 |            40.5 100.0 |            93.5  49.6 |            93.8  51.0 |            93.5  52.0 |  83.6  18.3  44.6
+Uniform          0.99579 |           100.0   0.0 |            82.9  69.8 |            76.2  86.8 |            76.7  84.6 |  98.1  98.2 100.0
+MNIST-flip       0.63020 |            94.5  32.2 |            86.7  46.0 |            82.8  61.3 |            82.8  61.0 |  97.4  83.5  94.0
+average                  |            81.4  40.9 |            85.4  59.1 |            81.6  70.2 |            81.8  69.4 |  87.0  72.5  82.1
+
+(b) Algorithm 2 permutation test (W1 on pTU, 1000 permutations, alpha = 0.05, 50 repeats)
+test set                   m=20             m=50            m=100   (rejection rate % / median p)
+MNIST (ID)             4 / 0.452        6 / 0.512        2 / 0.661
+FashionMNIST         100 / 0.000      100 / 0.000      100 / 0.000
+KMNIST                98 / 0.000      100 / 0.000      100 / 0.000
+CIFAR10              100 / 0.000      100 / 0.000      100 / 0.000
+SVHN                 100 / 0.000      100 / 0.000      100 / 0.000
+Gaussian              50 / 0.045       92 / 0.004      100 / 0.000
+Uniform              100 / 0.000      100 / 0.000      100 / 0.000
+MNIST-flip           100 / 0.000      100 / 0.000      100 / 0.000
