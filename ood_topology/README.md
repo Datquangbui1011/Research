@@ -410,5 +410,5 @@ It rejects "same distribution" for every OOD set in 100 % of repeats with m = 50
 
 **Limitations of this study:** one training seed; one small MLP on MNIST (the setting of
 [1]–[3], not the CNNs of [5]–[6]); the KL term was scaled by 0.1 to match the pTU paper's
-accuracy; the local/per-image versions of [1], [5] and [6] and the diagnostic variants are my
+accuracy; the per-image versions of [1] and [5], the MLP version of [6], and the diagnostic variants are my
 adaptations and are labelled as such above.
