@@ -102,3 +102,63 @@ TU = average over the 3 layers. Class means come from 10 000 MNIST training imag
   layers are combined matters just as much.
 - Limitation, as in the paper: an OOD input is compared with the mean of its *predicted*
   class, so a wrong prediction means a wrong reference diagram.
+
+### [3] pTU: predictive Topological Uncertainty (Yeh & Yang, 2025): `m3_ptu.py`
+
+- **Score:** S = 30 weight samples are drawn from the Bayes-by-Backprop posterior (the same 30
+  for every input). For each input and layer, I take the 0-dim activation-graph PD (as in [2]) under every
+  sample. pTU = the Fréchet variance of those 30 PDs, averaged over the 3 layers (Def. 3.1).
+  With 1-D diagrams of equal size, the Fréchet mean is the coordinate-wise mean of the sorted
+  weights.
+- **Bayesian baselines** use the same 30 samples: mutual information (MI, epistemic
+  uncertainty), predictive entropy, and MSP of the averaged prediction.
+- **Reference distribution:** pTU of 2000 MNIST training images.
+
+**(a) Per-sample OOD detection (AUROC ↑ / FPR95 ↓)**
+
+| OOD set | mean pTU | **pTU** | MI | Entropy | MSP (BMA) | pTU L1 / L2 / L3 AUROC |
+|---|---|---|---|---|---|---|
+| MNIST (ID) | 0.262 | – | – | – | – | – |
+| Fashion-MNIST | 0.579 | 78.4 / 42.3 | 73.5 / 75.6 | 69.5 / 79.3 | 69.6 / 79.3 | 89.8 / 73.3 / 77.8 |
+| KMNIST | 0.437 | 77.8 / 61.5 | 87.1 / 50.1 | 84.8 / 57.1 | 84.7 / 58.6 | 94.1 / 72.6 / 76.1 |
+| CIFAR-10 | 0.677 | 91.9 / 28.2 | 70.6 / 73.9 | 64.5 / 82.7 | 64.7 / 83.0 | 87.6 / 77.8 / 93.1 |
+| SVHN | 0.551 | 75.7 / 49.4 | 58.9 / 93.3 | 54.6 / 94.3 | 54.7 / 94.4 | 70.9 / 58.6 / 78.2 |
+| Gaussian | **0.193** | **28.5** / 100.0 | 92.4 / 58.6 | 93.2 / 53.4 | 92.9 / 57.4 | 86.5 / 10.0 / 30.8 |
+| Uniform | 0.714 | 99.8 / 0.2 | 55.8 / 97.5 | 46.4 / 99.5 | 46.6 / 99.5 | 99.1 / 88.9 / 99.9 |
+| MNIST-flip | 0.486 | 91.8 / 48.0 | 84.6 / 52.6 | 80.8 / 64.7 | 80.8 / 65.6 | 98.1 / 77.2 / 91.4 |
+| **average** | | **77.7 / 47.1** | 74.7 / 71.7 | 70.6 / 75.9 | 70.6 / 76.8 | 89.4 / 65.5 / 78.2 |
+
+**(b) Paper's dataset-level test (Algorithm 2).** I draw m training and m test inputs and run a
+permutation test (1000 permutations) on the W1 distance between their pTU values, repeated 50
+times. Entries are the % of repeats where H0 ("same distribution") is rejected at α = 0.05.
+
+| Test set | m = 20 | m = 50 | m = 100 |
+|---|---|---|---|
+| MNIST test (ID: should be about 5 %) | 8 % | 2 % | 4 % |
+| Fashion-MNIST | 98 % | 100 % | 100 % |
+| KMNIST | 96 % | 100 % | 100 % |
+| CIFAR-10 | 100 % | 100 % | 100 % |
+| SVHN | 100 % | 100 % | 100 % |
+| Gaussian | 92 % | 100 % | 100 % |
+| Uniform | 100 % | 100 % | 100 % |
+| MNIST-flip | 100 % | 100 % | 100 % |
+
+![pTU](results/m3_ptu_s0.png)
+
+**Takeaways for [3]:**
+- **The dataset-level test works very well.** With only 50 test images it flags every OOD set
+  in 100 % of repeats. On ID data the false-alarm rate stays near the nominal 5 % (2–8 %).
+  This is the setting the paper proposes, and it reproduces the paper's Table 1 (MNIST row:
+  every OOD set p ≈ 0.001, MNIST p = 0.95).
+- **Per sample, pTU (77.7) beats every Bayesian baseline** (MI 74.7, entropy 70.6), and it
+  gives the best result so far on the hardest high-confidence sets: Uniform 99.8, CIFAR-10 91.9,
+  MNIST-flip 91.8.
+- **Weakness: pTU is not one-directional.** Gaussian noise gets *lower* pTU than MNIST (0.193 vs
+  0.262, AUROC 28.5), and parts of SVHN and Fashion-MNIST sit in a low-pTU tail (left panel).
+  A one-sided "high pTU = OOD" rule misses these inputs. The permutation test compares whole
+  distributions, so it still catches them. A likely cause: on Gaussian inputs most hidden units
+  are inactive, so the activation graphs (and their variance across weight samples) shrink.
+- As in [2], **layer 1 alone is the strongest** (89.4 average AUROC), and averaging over layers
+  dilutes it.
+- Compared with [2], pTU needs 30 forward passes per input but no class-conditional
+  reference, so it does not depend on the prediction being correct.
