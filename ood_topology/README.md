@@ -217,3 +217,82 @@ Laplacian** (the down part is 0 in dimension 0). A bipartite graph has no triang
   algorithms for non-branching complexes) do not matter: in dimension 0 the persistent
   Laplacian is just a graph Laplacian, and one eigendecomposition per graph takes 48 s for
   all 10 000 inputs.
+
+### [5] Topology & geometry of the data manifold (Magai & Ayzenberg, 2022): `m5_data_manifold.py`
+
+- **Point clouds:** each layer gives one point per image (layers: input 784-d, hidden1 64-d,
+  hidden2 16-d, logits 10-d).
+- **Descriptors (as in the paper):** Vietoris–Rips persistent homology on the point cloud,
+  summarized by the **total persistence of H0 and H1**, plus the **intrinsic dimension**
+  (TwoNN estimator). The paper also uses a PH-dimension estimator, which needs very large
+  samples (one of its noted limits), so I used TwoNN instead.
+- **(a) Batch level, the paper's setting.** A batch of m test images gives a 12-number
+  descriptor (4 layers × {H0, H1, ID}). Score = mean squared z-score against batches of
+  MNIST training images of the same size. For a fair comparison, TU [2] and MSP are averaged
+  over the same batches.
+- **(b) Per image (my local adaptation).** For an input x and each layer, take its k = 20
+  nearest training points (from a 5000-image reference cloud). The features are the change in
+  H0 and H1 total persistence of their Rips complex when x is added. Score = mean squared
+  z-score against 1000 training inputs. I compare it with the k-NN distance (Sun et al. 2022),
+  because a change in H0 is closely related to nearest-neighbour distances.
+
+**(a) Batch level: average AUROC / FPR95 over the 7 OOD sets**
+
+| batch size m | **[5] descriptors** | TU [2] batch mean | MSP batch mean |
+|---|---|---|---|
+| 10 | **94.8 / 19.6** | 93.8 / 27.1 | 76.3 / 48.1 |
+| 20 | **98.9 / 4.3** | 96.5 / 20.1 | 77.3 / 36.4 |
+| 50 | **100.0 / 0.0** | 99.6 / 1.4 | 78.9 / 29.3 |
+
+Per set at m = 10: [5] is weakest on Fashion-MNIST (73.0, where TU gets 99.8). It is perfect
+on SVHN, Gaussian, Uniform and MNIST-flip; there TU has trouble with Uniform (82.5) and
+MNIST-flip (78.3), and MSP fails on SVHN (54.4) and Uniform (15.5). The full per-set tables are
+printed by the script.
+
+**(b) Per image: AUROC / FPR95 (first 1000 images of each set)**
+
+| OOD set | local PH (ΔH0, ΔH1) | **local ΔH0 only** | local ΔH1 only | k-NN distance |
+|---|---|---|---|---|
+| Fashion-MNIST | 92.6 / 27.3 | 93.3 / 23.3 | 41.3 / 93.8 | 85.1 / 43.1 |
+| KMNIST | 92.1 / 27.5 | 95.5 / 18.0 | 36.1 / 96.6 | 86.5 / 55.5 |
+| CIFAR-10 | 98.6 / 6.2 | 99.4 / 3.0 | 33.5 / 97.6 | 97.1 / 14.9 |
+| SVHN | 93.6 / 23.2 | 95.5 / 17.1 | 35.7 / 97.7 | 86.8 / 39.9 |
+| Gaussian | 89.8 / 70.6 | 94.1 / 53.9 | 61.8 / 84.9 | 74.1 / 100.0 |
+| Uniform | 99.9 / 0.0 | 100.0 / 0.0 | 29.9 / 99.2 | 100.0 / 0.0 |
+| MNIST-flip | 97.0 / 12.9 | 99.3 / 0.0 | 38.0 / 96.0 | 92.4 / 72.0 |
+| **average** | 94.8 / 24.0 | **96.7 / 16.5** | 39.5 / 95.1 | 88.9 / 46.5 |
+
+**Mean batch descriptors (m = 50), H0 / H1 / TwoNN-ID:**
+
+| set | input | hidden1 | hidden2 | logits |
+|---|---|---|---|---|
+| MNIST train (ref.) | 364 / 7.2 / 10.6 | 473 / 10.0 / 6.9 | 513 / 17.1 / 5.0 | 707 / 24.2 / 4.6 |
+| MNIST test | 363 / 7.2 / 10.6 | 476 / 10.2 / 6.7 | 516 / 17.1 / 4.9 | 708 / 24.2 / 4.5 |
+| Fashion-MNIST | 323 / 3.2 / 9.3 | 391 / 9.1 / 5.7 | 419 / 13.5 / 5.0 | 567 / 17.7 / 4.9 |
+| KMNIST | 485 / 2.5 / 18.8 | 545 / 10.2 / 10.2 | 539 / 17.1 / 7.2 | 747 / 25.5 / 6.4 |
+| CIFAR-10 | 267 / 1.4 / 13.9 | 347 / 5.6 / 9.2 | 386 / 10.6 / 6.8 | 534 / 15.4 / 6.0 |
+| SVHN | 177 / 1.3 / 10.3 | 235 / 2.8 / 8.0 | 268 / 5.5 / 5.9 | 365 / 9.5 / 5.4 |
+| Gaussian | 409 / 2.1 / 108.4 | 215 / 4.6 / 19.7 | 175 / 6.2 / 8.8 | 241 / 9.1 / 7.0 |
+| Uniform | 537 / 5.9 / 124.0 | 288 / 7.3 / 18.6 | 229 / 8.2 / 8.5 | 309 / 11.8 / 6.6 |
+| MNIST-flip | 672 / 6.5 / 63.1 | 506 / 10.0 / 14.8 | 492 / 17.5 / 7.5 | 682 / 25.8 / 6.4 |
+
+![manifold](results/m5_data_manifold_s0.png)
+
+**Takeaways for [5]:**
+- **It reproduces the paper's geometric finding.** The intrinsic dimension of MNIST shrinks
+  layer by layer (10.6 → 6.9 → 5.0 → 4.6). For noise inputs it collapses even more steeply
+  (Gaussian 108 → 7; right panel), but never down to the MNIST level. The network
+  "compresses" OOD data too, just not into the same manifold.
+- **It is the best batch-level detector so far:** 94.8 AUROC with only 10 images per batch,
+  ahead of the batch mean of TU (93.8) and far ahead of MSP (76.3).
+  - Different descriptors catch different OOD sets: intrinsic dimension catches noise and
+    MNIST-flip (ID 63–124 at the input vs 10.6), and H1 total persistence catches natural images
+    (CIFAR-10/SVHN have 5× fewer loops at the input).
+  - Fashion-MNIST at m = 10 is its blind spot. Its descriptors are close to MNIST's, scaled down.
+- **The per-image local version is the best per-image score so far: 96.7 AUROC with ΔH0 alone.**
+  It beats the k-NN distance (88.9), TU (78.4), pTU (77.7) and β₀ (85.8).
+  - Caveat: ΔH0 (how much the minimum spanning tree grows when x joins its neighbours) is
+    essentially a refined nearest-neighbour distance, combined across 4 layers. So most of
+    its strength is "distance to the training data", not higher-order topology.
+  - ΔH1 alone is *below* chance (39.5). A far-away OOD point creates no new loops, so its ΔH1
+    is near 0, which is less unusual than the scattered ΔH1 of in-distribution points.
