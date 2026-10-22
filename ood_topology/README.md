@@ -296,3 +296,119 @@ printed by the script.
     its strength is "distance to the training data", not higher-order topology.
   - ΔH1 alone is *below* chance (39.5). A far-away OOD point creates no new loops, so its ΔH1
     is near 0, which is less unusual than the scattered ΔH1 of in-distribution points.
+
+### [6] Topology of hidden-layer activations + sliced Wasserstein (Purvine et al., 2023): `m6_activation_ph.py`
+
+- **Adaptation.** Purvine et al. take, for a CNN layer, one channel vector per image (at
+  the spatial position with the largest activation). In our MLP each image already gives one
+  vector per layer, so I use the layer activations directly. Their Mapper analysis is
+  qualitative and is not used.
+- **Diagrams.** Rips persistence diagrams in dimensions 0 and 1 for each layer's point cloud
+  of a batch, compared with the **sliced Wasserstein (SW) distance** (50 directions). All
+  evaluation is at batch level.
+- **(i) SW to reference:** the mean SW distance from the batch's diagrams to those of 20 anchor
+  batches of MNIST training images, for each layer and dimension (8 numbers), z-scored
+  against calibration batches of training images. Larger distance = more OOD.
+- **(ii) Layer profile:** SW distances between consecutive layers inside the batch, which is
+  Purvine's layer-similarity measure (6 numbers). Score = mean squared z-score against the
+  training-batch profiles.
+
+**AUROC / FPR95 at batch size m = 10** (200 ID vs 200 OOD batches)
+
+| OOD set | **(i) SW to reference** | (ii) layer profile | [5] descriptors | TU batch mean |
+|---|---|---|---|---|
+| Fashion-MNIST | 63.8 / 88.0 | 82.9 / 77.5 | 73.0 / 86.0 | 99.8 / 1.0 |
+| KMNIST | 88.8 / 48.5 | 78.7 / 80.5 | 93.5 / 36.5 | 97.1 / 13.0 |
+| CIFAR-10 | 96.0 / 18.0 | 87.4 / 65.0 | 97.4 / 15.0 | 99.0 / 2.0 |
+| SVHN | 100.0 / 0.0 | 98.5 / 5.0 | 100.0 / 0.0 | 99.8 / 0.5 |
+| Gaussian | 100.0 / 0.0 | 99.0 / 0.0 | 100.0 / 0.0 | 100.0 / 0.0 |
+| Uniform | 100.0 / 0.0 | 98.3 / 1.5 | 100.0 / 0.0 | 82.5 / 93.0 |
+| MNIST-flip | 100.0 / 0.0 | 79.6 / 97.0 | 100.0 / 0.0 | 78.3 / 80.0 |
+| **average** | **92.7 / 22.1** | 89.2 / 46.6 | 94.8 / 19.6 | 93.8 / 27.1 |
+
+**Average AUROC / FPR95 by batch size**
+
+| m | (i) SW to reference | (ii) layer profile | [5] descriptors | TU batch mean |
+|---|---|---|---|---|
+| 10 | 92.7 / 22.1 | 89.2 / 46.6 | **94.8 / 19.6** | 93.8 / 27.1 |
+| 20 | **99.2 / 4.0** | 92.4 / 36.3 | 98.9 / 4.3 | 96.5 / 20.1 |
+| 50 | 100.0 / 0.0 | 99.7 / 1.4 | 100.0 / 0.0 | 99.6 / 1.4 |
+
+![SW](results/m6_activation_ph_s0.png)
+
+**Takeaways for [6]:**
+- **Comparing full diagrams with SW works about as well as [5]'s summary numbers:** 92.7
+  (m = 10) and 99.2 (m = 20), against 94.8 and 98.9. Keeping the whole diagram does not beat
+  three well-chosen summaries.
+- **H0 diagrams carry most of the signal** (left panel). OOD batches sit 2–14× further from
+  the MNIST reference than MNIST test batches do. The gap is clearest at the input layer for
+  pixel-level shifts (MNIST-flip, noise) and in the deeper layers for natural images. H1
+  distances differ much less.
+- **The layer-similarity profile, Purvine's main tool, is the weaker OOD signal** (89.2 at
+  m = 10). Looking at how the representation *changes* between layers is less direct than
+  looking at the representation itself, and it struggles on digit-like shifts (MNIST-flip 79.6,
+  KMNIST 78.7).
+- Like [5], it is weakest on Fashion-MNIST at small batch sizes (63.8), where TU is almost
+  perfect. Batch-level PH and TU are complementary.
+
+---
+
+## Summary across all six approaches
+
+Same model (Bayesian MLP 784-64-16-10, MNIST, 97.1 % test accuracy) and same OOD sets
+throughout. Average over the 7 OOD sets. Rows marked † are evaluated on the first 1000 images
+of each set; the rest use 2000.
+
+**Per-image OOD detection (AUROC ↑ / FPR95 ↓)**
+
+| Approach | Score | AUROC | FPR95 |
+|---|---|---|---|
+| [1] Neural persistence | original (weights only) | 50.0 | – |
+| | per-input NP (adaptation) | 49.8 | 93.7 |
+| [2] Topological uncertainty | TU (paper) | 78.4 | 69.9 |
+| | TU, layers rescaled (diagnostic) | 88.1 | 60.5 |
+| [3] pTU | pTU (paper, 30 posterior samples) | 77.7 | 47.1 |
+| [4] Persistent Laplacian † | full spectrum | 81.7 | 61.0 |
+| | β₀ only (harmonic / PH part) | 85.8 | 48.3 |
+| [5] Data manifold † | local ΔH0 + ΔH1 (adaptation) | 94.8 | 24.0 |
+| | **local ΔH0 only** | **96.7** | **16.5** |
+| Baselines | MSP (max softmax) | 69.2 | 78.1 |
+| | Bayesian mutual information | 74.7 | 71.7 |
+| | k-NN distance † | 88.9 | 46.5 |
+
+**Batch-level OOD detection, m = 10 images per batch (AUROC ↑ / FPR95 ↓)**
+
+| Approach | AUROC | FPR95 |
+|---|---|---|
+| **[5] H0/H1 total persistence + intrinsic dimension** | **94.8** | **19.6** |
+| [2] TU, batch mean | 93.8 | 27.1 |
+| [6] SW distance of activation PDs to reference | 92.7 | 22.1 |
+| [6] layer-to-layer SW profile | 89.2 | 46.6 |
+| MSP, batch mean | 76.3 | 48.1 |
+
+[3]'s own dataset-level test (permutation test on pTU, Algorithm 2) uses a different protocol.
+It rejects "same distribution" for every OOD set in 100 % of repeats with m = 50 images
+(92–100 % with m = 20), with a 2–8 % false-alarm rate on MNIST.
+
+**Overall conclusions**
+1. **Every topological approach except [1] beats the softmax-confidence baseline** (69.2), and
+   the gap is largest exactly where the network is confidently wrong: SVHN, CIFAR-10 and
+   uniform noise get confidence ≈ 0.94–1.0, but topology still separates them.
+2. **Activation-based descriptors work; weight-based ones do not.** NP [1] describes the
+   network, not the input, so it cannot detect OOD at all.
+3. **Simple, scale-aware summaries beat elaborate ones.** β₀ at fixed thresholds (85.8)
+   beats TU's Wasserstein distance (78.4) and the full persistent-Laplacian spectrum (81.7).
+   Rescaling the layers before averaging lifts TU from 78.4 to 88.1. The nonzero
+   Laplacian eigenvalues and the H1 features add little or hurt in this setting.
+4. **The first layer is the most informative** in [2], [3] and [4] (single-layer AUROC
+   ≈ 84–90), yet those papers average all layers equally.
+5. **The best per-image score, local ΔH0 from [5] (96.7), is closest to a nearest-neighbour
+   distance in activation space.** This suggests that "distance to the training data across
+   layers" is what drives detection here, more than higher-order topology.
+6. **For whole datasets, all batch methods saturate quickly** (≥ 99 % AUROC at m = 50). The
+   pTU permutation test [3] is the only one with a calibrated false-alarm rate.
+
+**Limitations of this study:** one training seed; one small MLP on MNIST (the setting of
+[1]–[3], not the CNNs of [5]–[6]); the KL term was scaled by 0.1 to match the pTU paper's
+accuracy; the local/per-image versions of [1], [5] and [6] and the diagnostic variants are my
+adaptations and are labelled as such above.
