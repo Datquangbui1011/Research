@@ -62,3 +62,43 @@ are also the setting of [1] and [2].
 - Why: NP compresses each layer's whole PD into one normalized number. The global-max
   normalization also removes the activation scale, which is exactly where OOD inputs differ.
   This motivates [2], which keeps the full PD and compares it with class-wise reference PDs.
+
+### [2] Topological Uncertainty (Lacombe et al., 2021): `m2_topological_uncertainty.py`
+
+For each input, the 0-dim PD of every layer's activation graph |W(j,i)·x(i)| (= the
+d_l + d_{l+1} − 1 MST weights) is compared, by 2-Wasserstein distance (L2 between sorted
+weights), with the Fréchet-mean PD of the training inputs that have the same predicted class.
+TU = average over the 3 layers. Class means come from 10 000 MNIST training images.
+
+| OOD set | mean TU | mean conf. | **TU AUROC ↑** | TU FPR95 ↓ | TU-norm AUROC ↑ | TU-norm FPR95 ↓ | L1 / L2 / L3 AUROC | MSP AUROC ↑ | MSP FPR95 ↓ |
+|---|---|---|---|---|---|---|---|---|---|
+| MNIST (ID) | 3.67 | 0.979 | – | – | – | – | – | – | – |
+| Fashion-MNIST | 6.98 | 0.924 | 83.3 | 61.3 | 90.0 | 51.3 | 91.3 / 73.4 / 73.9 | 68.2 | 80.7 |
+| KMNIST | 5.36 | 0.844 | 73.4 | 79.9 | 75.9 | 80.8 | 72.9 / 62.8 / 69.9 | 84.2 | 60.4 |
+| CIFAR-10 | 5.88 | 0.942 | 78.6 | 78.2 | 92.7 | 56.6 | 99.4 / 58.8 / 60.3 | 62.5 | 84.9 |
+| SVHN | 6.47 | 0.978 | 82.2 | 69.3 | 94.4 | 46.7 | 99.6 / 65.2 / 64.6 | 53.1 | 95.0 |
+| Gaussian | 8.79 | 0.837 | 97.8 | 4.2 | 96.6 | 14.1 | 86.5 / 94.7 / 97.9 | 92.8 | 58.7 |
+| Uniform | 4.21 | 0.997 | 69.3 | 100.0 | 93.0 | 78.8 | 100.0 / 44.0 / 33.8 | 43.1 | 99.6 |
+| MNIST-flip | 4.21 | 0.873 | 64.1 | 96.4 | 73.9 | 95.5 | 83.8 / 52.2 / 56.2 | 80.2 | 67.5 |
+| **average** | | | **78.4** | **69.9** | **88.1** | **60.5** | 90.5 / 64.5 / 65.3 | **69.2** | **78.1** |
+
+- **TU** is the paper's definition: raw distances averaged over layers.
+- **TU-norm** is a diagnostic: each layer's distance is divided by its mean on the training set
+  before averaging, so all layers count equally.
+- **L1 / L2 / L3** is the AUROC of each layer's distance used alone.
+
+![TU](results/m2_topological_uncertainty_s0.png)
+
+**Takeaways for [2]:**
+- TU beats the confidence baseline on average (**78.4 vs 69.2 AUROC**) and on 5 of 7 OOD sets.
+- It reproduces the paper's main claim. SVHN (conf. 0.978), Uniform (0.997) and CIFAR-10
+  (0.942) are classified about as confidently as MNIST (0.979), so MSP almost fails
+  (AUROC 53 / 43 / 62), while TU still separates them (82 / 69 / 79). See the right panel.
+- KMNIST and MNIST-flip are the only sets where MSP wins. Both are digit-like "near-OOD"
+  inputs that activate the network much like MNIST does.
+- **Layer averaging matters.** Layer 1 alone gives 90.5 average AUROC. The plain average
+  over layers lets the larger-scale distances dominate, which costs about 10 points (TU 78.4 vs
+  TU-norm 88.1). The paper's open question "richer descriptors than MST" applies; how the
+  layers are combined matters just as much.
+- Limitation, as in the paper: an OOD input is compared with the mean of its *predicted*
+  class, so a wrong prediction means a wrong reference diagram.
