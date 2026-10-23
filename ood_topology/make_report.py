@@ -265,11 +265,11 @@ def build_plain():
     ], W))
 
     story.append(Paragraph("1. The network I used", h2))
-    story.append(Paragraph("I needed one network to test all six ideas fairly. Three of the papers used a small network "
-                           "on MNIST, and one (pTU) gave the exact recipe, so I copied it:", body))
     bullets([
-        B("Input: ") + "a 28×28 digit image (784 pixels). " + B("Layers: ") + "784 → 64 → 16 → 10 neurons; the 10 outputs "
-        "are the digits 0–9.",
+        B("Why this network: ") + "I needed one network to test all six ideas fairly. Three of the papers used a small "
+        "network on MNIST, and one (pTU) gave the exact recipe, so I copied it.",
+        B("Input: ") + "a 28×28 digit image (784 pixels).",
+        B("Layers: ") + "784 → 64 → 16 → 10 neurons; the 10 outputs are the digits 0–9.",
         B("Bayesian: ") + "each weight is a range of likely values instead of one number, so you can create many slightly "
         "different versions of the same network. Method [3] needs this.",
         B("Accuracy: 97.2 %") + ", almost the same as the paper's 97.4 %. To get there I had to weaken one part of the "
@@ -297,8 +297,9 @@ def build_plain():
 
     story.append(Paragraph("3. How I tested them", h2))
     bullets([
-        B("Normal images: ") + "MNIST digits. " + B("Unfamiliar images: ") + "clothes, Japanese characters, photos, house "
-        "numbers, two kinds of random noise, and digits with some pixels flipped.",
+        B("Normal images: ") + "MNIST digits.",
+        B("Unfamiliar images: ") + "clothes, Japanese characters, photos, house numbers, two kinds of random noise, and "
+        "digits with some pixels flipped.",
         B("Score (AUROC): ") + "how well a method ranks unfamiliar images above normal ones. "
         + B("50 = coin flip, 100 = perfect."),
         B("Two settings: ") + "one image at a time (“is " + B("this") + " image strange?”) and a group of images "
