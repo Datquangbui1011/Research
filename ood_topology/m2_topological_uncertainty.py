@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from common import N_TRAIN_REF, RESULTS_DIR, eval_sets, mean_net_pds, msp_score, ood_metrics
+from common import ID, N_TRAIN_REF, RESULTS_DIR, eval_sets, mean_net_pds, msp_score, ood_metrics
 
 
 def class_mean_pds(pds, pred, n_classes=10):
@@ -38,7 +38,7 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     seed = ap.parse_args().seed
 
-    tr = mean_net_pds(seed, "MNIST", "train", N_TRAIN_REF)
+    tr = mean_net_pds(seed, ID, "train", N_TRAIN_REF)
     means = class_mean_pds(tr["pds"], tr["logits"].argmax(1))
     tu_train, tr_layers = tu_score(tr["pds"], tr["logits"], means)
     layer_scale = tr_layers.mean(0)  # diagnostic: put every layer's distance on the same scale
@@ -50,17 +50,17 @@ def main():
         msp[name] = msp_score(d["logits"])
         conf[name] = 1 - msp[name]
 
-    L = layers["MNIST"].shape[1]
+    L = layers[ID].shape[1]
     rows = []
     hdr = " ".join(f"{'L' + str(l + 1):>5s}" for l in range(L))
     print(f"{'OOD set':14s} {'TU mean':>8s} {'conf':>5s} | {'TU AUROC':>8s} {'FPR95':>6s} | "
           f"{'TUnorm':>6s} {'FPR95':>6s} | per-layer AUROC {hdr} | {'MSP AUROC':>9s} {'FPR95':>6s}")
-    print(f"{'MNIST (ID)':14s} {tu['MNIST'].mean():8.4f} {conf['MNIST'].mean():5.3f} |  (train TU mean {tu_train.mean():.4f})")
+    print(f"{ID + ' (ID)':14s} {tu[ID].mean():8.4f} {conf[ID].mean():5.3f} |  (train TU mean {tu_train.mean():.4f})")
     for name in eval_sets()[1:]:
-        a, f = ood_metrics(tu["MNIST"], tu[name])
-        an, fn = ood_metrics((layers["MNIST"] / layer_scale).mean(1), (layers[name] / layer_scale).mean(1))
-        al = [ood_metrics(layers["MNIST"][:, l], layers[name][:, l])[0] for l in range(L)]
-        ab, fb = ood_metrics(msp["MNIST"], msp[name])
+        a, f = ood_metrics(tu[ID], tu[name])
+        an, fn = ood_metrics((layers[ID] / layer_scale).mean(1), (layers[name] / layer_scale).mean(1))
+        al = [ood_metrics(layers[ID][:, l], layers[name][:, l])[0] for l in range(L)]
+        ab, fb = ood_metrics(msp[ID], msp[name])
         rows.append({"ood": name, "tu_mean": float(tu[name].mean()), "confidence": float(conf[name].mean()),
                      "auroc": a, "fpr95": f, "norm_auroc": an, "norm_fpr95": fn, "layer_auroc": al, "msp_auroc": ab, "msp_fpr95": fb})
         print(f"{name:14s} {tu[name].mean():8.4f} {conf[name].mean():5.3f} | {a:8.1f} {f:6.1f} | {an:6.1f} {fn:6.1f} | "
@@ -72,22 +72,22 @@ def main():
           + " ".join(f"{x:5.1f}" for x in avg["layer_auroc"]) + f" | {avg['msp_auroc']:9.1f} {avg['msp_fpr95']:6.1f}")
     (RESULTS_DIR / f"m2_topological_uncertainty_s{seed}.json").write_text(
         json.dumps({"seed": seed, "tu_train_mean": float(tu_train.mean()),
-                    "tu_id_mean": float(tu["MNIST"].mean()), "rows": rows, "average": avg}, indent=2))
+                    "tu_id_mean": float(tu[ID].mean()), "rows": rows, "average": avg}, indent=2))
 
     # Figure: TU distributions (like Fig. 4 of the paper) and TU vs. confidence
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.2))
     hi = np.quantile(np.concatenate(list(tu.values())), 0.995)
     bins = np.linspace(0, hi, 60)
     for name, v in tu.items():
-        axes[0].hist(v, bins=bins, histtype="step", density=True, lw=2.2 if name == "MNIST" else 1,
-                     label=name + (" (ID)" if name == "MNIST" else ""))
+        axes[0].hist(v, bins=bins, histtype="step", density=True, lw=2.2 if name == ID else 1,
+                     label=name + (" (ID)" if name == ID else ""))
     axes[0].set_xlabel("Topological Uncertainty")
     axes[0].set_ylabel("density")
     axes[0].set_title("[2] TU distribution per dataset")
     axes[0].legend(fontsize=7)
     for name in eval_sets():
         axes[1].scatter(conf[name][:300], tu[name][:300], s=4, alpha=0.5,
-                        label=name + (" (ID)" if name == "MNIST" else ""))
+                        label=name + (" (ID)" if name == ID else ""))
     axes[1].set_xlabel("softmax confidence (max probability)")
     axes[1].set_ylabel("Topological Uncertainty")
     axes[1].set_ylim(0, hi)

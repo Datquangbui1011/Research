@@ -28,7 +28,7 @@ import numpy as np
 import torch
 from scipy.spatial.distance import pdist, squareform
 
-from common import CACHE_DIR, RESULTS_DIR, eval_sets, load_dataset, load_model, ood_metrics
+from common import ID, CACHE_DIR, RESULTS_DIR, eval_sets, load_dataset, load_model, ood_metrics
 from m5_data_manifold import LAYER_NAMES, layer_clouds
 
 BATCH_SIZES = (10, 20, 50)
@@ -89,7 +89,7 @@ def main():
         res = torch.load(cache, weights_only=False)
     else:
         weights = load_model(seed).sample_weights(mean=True)
-        Xtr, _ = load_dataset("MNIST", "train")
+        Xtr, _ = load_dataset(ID, "train")
         perm = torch.randperm(len(Xtr), generator=torch.Generator().manual_seed(21))
         ref_clouds = layer_clouds(weights, Xtr[perm[:5000]])
         res = {}
@@ -121,7 +121,7 @@ def main():
         for n in eval_sets()[1:]:
             r = {"ood": n}
             for k in sc:
-                a, f = ood_metrics(sc[k]["MNIST"], sc[k][n])
+                a, f = ood_metrics(sc[k][ID], sc[k][n])
                 r[k] = {"auroc": a, "fpr95": f}
             rows.append(r)
             print(f"{n:14s} | " + " | ".join(f"{r[k]['auroc']:6.1f} / {r[k]['fpr95']:5.1f}" for k in sc)
@@ -135,7 +135,7 @@ def main():
 
     # mean SW distance to the reference, per layer and dimension (m = 50)
     feat = [f"{l}:H{d}" for l in LAYER_NAMES for d in (0, 1)]
-    print("\nmean SW distance to MNIST-train reference diagrams, m = 50:")
+    print(f"\nmean SW distance to {ID}-train reference diagrams, m = 50:")
     print(f"  {'set':16s}" + "".join(f"{f:>14s}" for f in feat))
     sw_means = {}
     for n in ["calibration (train)"] + eval_sets():
@@ -160,11 +160,11 @@ def main():
     for ax, d in zip(axes, (0, 1)):
         for n in ["calibration (train)"] + eval_sets():
             v = np.array(sw_means[n])[d::2]
-            ax.plot(LAYER_NAMES, v, marker="o", lw=2.2 if n in ("MNIST", "calibration (train)") else 1,
+            ax.plot(LAYER_NAMES, v, marker="o", lw=2.2 if n in (ID, "calibration (train)") else 1,
                     ls="--" if n.startswith("calibration") else "-",
-                    label="MNIST train" if n.startswith("calibration") else n)
+                    label=f"{ID} train" if n.startswith("calibration") else n)
         ax.set_yscale("log")
-        ax.set_ylabel("mean SW distance to MNIST-train PDs")
+        ax.set_ylabel(f"mean SW distance to {ID}-train PDs")
         ax.set_title(f"[6] H{d} diagrams: SW distance to reference per layer (m = 50)")
     axes[0].legend(fontsize=7)
     fig.tight_layout()

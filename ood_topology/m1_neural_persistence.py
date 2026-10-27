@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from common import (N_TRAIN_REF, RESULTS_DIR, bipartite_mst_weights, eval_sets, load_dataset,
+from common import (ID, N_TRAIN_REF, RESULTS_DIR, bipartite_mst_weights, eval_sets, load_dataset,
                     load_model, mean_net_pds, msp_score, ood_metrics)
 
 
@@ -74,7 +74,7 @@ def main():
     print("     -> identical for every input, so as an OOD score AUROC = 50.0 on every set\n")
 
     # (b) input-dependent NP on activation graphs
-    tr_np, _, tr_logits = input_np(seed, "MNIST", "train", N_TRAIN_REF)
+    tr_np, _, tr_logits = input_np(seed, ID, "train", N_TRAIN_REF)
     tr_pred = tr_logits.argmax(1).numpy()
     mu = np.array([tr_np[tr_pred == k].mean() for k in range(10)])
     sd = np.array([tr_np[tr_pred == k].std() for k in range(10)])
@@ -90,11 +90,11 @@ def main():
 
     rows = []
     print(f"{'OOD set':14s} {'NP mean':>8s} | {'NP AUROC':>8s} {'FPR95':>6s} | {'raw AUROC':>9s} | {'MSP AUROC':>9s} {'FPR95':>6s}")
-    print(f"{'MNIST (ID)':14s} {vals['MNIST'].mean():8.4f} |")
+    print(f"{ID + ' (ID)':14s} {vals[ID].mean():8.4f} |")
     for name in eval_sets()[1:]:
-        a, f = ood_metrics(scores["MNIST"], scores[name])
-        ar, _ = ood_metrics(vals["MNIST"], vals[name])  # diagnostic: raw NP, higher = OOD
-        ab, fb = ood_metrics(msp["MNIST"], msp[name])
+        a, f = ood_metrics(scores[ID], scores[name])
+        ar, _ = ood_metrics(vals[ID], vals[name])  # diagnostic: raw NP, higher = OOD
+        ab, fb = ood_metrics(msp[ID], msp[name])
         rows.append({"ood": name, "np_mean": float(vals[name].mean()), "auroc": a, "fpr95": f,
                      "raw_auroc": ar, "msp_auroc": ab, "msp_fpr95": fb})
         print(f"{name:14s} {vals[name].mean():8.4f} | {a:8.1f} {f:6.1f} | {ar:9.1f} | {ab:9.1f} {fb:6.1f}")
@@ -109,12 +109,12 @@ def main():
     fig, ax = plt.subplots(figsize=(7, 4))
     bins = np.linspace(min(v.min() for v in vals.values()), max(v.max() for v in vals.values()), 60)
     for name, v in vals.items():
-        ax.hist(v, bins=bins, histtype="step", density=True, lw=2 if name == "MNIST" else 1,
-                label=name + (" (ID)" if name == "MNIST" else ""))
+        ax.hist(v, bins=bins, histtype="step", density=True, lw=2 if name == ID else 1,
+                label=name + (" (ID)" if name == ID else ""))
     ax.axvline(np_orig.item(), color="k", ls="--", lw=1, label="original NP (weights only)")
     ax.set_xlabel("mean normalized neural persistence of the activation graphs")
     ax.set_ylabel("density")
-    ax.set_title("[1] Neural persistence per input (MLP 784-64-16-10 on MNIST)")
+    ax.set_title(f"[1] Neural persistence per input (MLP 784-64-16-10 on {ID})")
     ax.legend(fontsize=7)
     fig.tight_layout()
     fig.savefig(RESULTS_DIR / f"m1_neural_persistence_s{seed}.png", dpi=150)

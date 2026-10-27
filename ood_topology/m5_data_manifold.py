@@ -26,7 +26,7 @@ import numpy as np
 import torch
 from scipy.spatial.distance import cdist, pdist, squareform
 
-from common import (CACHE_DIR, RESULTS_DIR, eval_sets, forward_trace, load_dataset, load_model,
+from common import (ID, CACHE_DIR, RESULTS_DIR, eval_sets, forward_trace, load_dataset, load_model,
                     mean_net_pds, msp_score, ood_metrics)
 from m2_topological_uncertainty import class_mean_pds, tu_score
 
@@ -107,7 +107,7 @@ def main():
         res = torch.load(cache, weights_only=False)
     else:
         weights = load_model(seed).sample_weights(mean=True)
-        Xtr, _ = load_dataset("MNIST", "train")
+        Xtr, _ = load_dataset(ID, "train")
         perm = torch.randperm(len(Xtr), generator=torch.Generator().manual_seed(21))
         ref_batches_X = Xtr[perm[:N_REF_IMAGES]]              # 5000 images: reference batches
         cloud_X = Xtr[perm[5000:10000]]                      # 5000 images: k-NN reference cloud
@@ -128,7 +128,7 @@ def main():
         torch.save(res, cache)
 
     # ---------------- (a) batch level
-    tr_pd = mean_net_pds(seed, "MNIST", "train", 10000)
+    tr_pd = mean_net_pds(seed, ID, "train", 10000)
     means = class_mean_pds(tr_pd["pds"], tr_pd["logits"].argmax(1))
     tu_all, msp_all = {}, {}
     for n in eval_sets():
@@ -152,7 +152,7 @@ def main():
         for n in eval_sets()[1:]:
             r = {"ood": n}
             for key in sc:
-                a, f = ood_metrics(sc[key]["MNIST"], sc[key][n])
+                a, f = ood_metrics(sc[key][ID], sc[key][n])
                 r[key] = {"auroc": a, "fpr95": f}
             rows.append(r)
             print(f"{n:14s} | " + " | ".join(f"{r[k]['auroc']:6.1f} / {r[k]['fpr95']:5.1f}" for k in sc))
@@ -181,7 +181,7 @@ def main():
         r = {"ood": n}
         line = f"{n:14s} | "
         for v in variants:
-            a, f = ood_metrics(sc[v]["MNIST"], sc[v][n])
+            a, f = ood_metrics(sc[v][ID], sc[v][n])
             r[v] = {"auroc": a, "fpr95": f}
             line += f"{'':7s}{a:5.1f} / {f:5.1f} | "
         loc_rows.append(r)
@@ -199,9 +199,9 @@ def main():
         for n in ["reference (train)"] + eval_sets():
             v = np.array(desc_means[n])[j::3]
             v = v / np.array(desc_means["reference (train)"])[j::3]
-            ax.plot(LAYER_NAMES, v, marker="o", lw=2.2 if n in ("MNIST", "reference (train)") else 1,
+            ax.plot(LAYER_NAMES, v, marker="o", lw=2.2 if n in (ID, "reference (train)") else 1,
                     ls="--" if n.startswith("reference") else "-", label=n)
-        ax.set_title(f"[5] {title}, m = 50 (rel. to MNIST train)", fontsize=10)
+        ax.set_title(f"[5] {title}, m = 50 (rel. to {ID} train)", fontsize=10)
         ax.set_yscale("log")
     axes[0].set_ylabel("batch mean / train mean")
     axes[0].legend(fontsize=7)

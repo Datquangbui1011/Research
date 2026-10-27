@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from common import (CACHE_DIR, RESULTS_DIR, activation_graphs, bipartite_mst_weights, eval_sets,
+from common import (ID, CACHE_DIR, RESULTS_DIR, activation_graphs, bipartite_mst_weights, eval_sets,
                     load_dataset, load_model, ood_metrics)
 
 S = 30
@@ -88,7 +88,7 @@ def main():
         posterior = [model.sample_weights() for _ in range(S)]
         res = {}
         # reference pTU of training inputs: a training subset disjoint from the 10k used in [1]/[2]
-        Xtr, _ = load_dataset("MNIST", "train")
+        Xtr, _ = load_dataset(ID, "train")
         Xtr = Xtr[torch.randperm(len(Xtr), generator=torch.Generator().manual_seed(7))[-N_TRAIN_PTU:]]
         for name, X in [("train", Xtr)] + [(n, load_dataset(n, "test", n=2000)[0]) for n in eval_sets()]:
             res[name] = dict(zip(("ptu", "layers", "probs", "mi"), ptu_and_bayes(model, X, posterior, dev)))
@@ -100,22 +100,22 @@ def main():
 
     scores = {n: {"pTU": r["ptu"], "Entropy": entropy(r["probs"]), "MI": r["mi"],
                   "MSP (BMA)": 1 - r["probs"].max(1)} for n, r in res.items()}
-    L = res["MNIST"]["layers"].shape[1]
+    L = res[ID]["layers"].shape[1]
 
     # (a) per-sample OOD detection
     methods = ["pTU", "MI", "Entropy", "MSP (BMA)"]
     rows = []
     print(f"\n(a) per-sample  {'pTU mean':>9s} | " + " | ".join(f"{m:>9s} AUROC FPR95" for m in methods)
           + " | pTU per-layer AUROC")
-    print(f"{'MNIST (ID)':14s} {res['MNIST']['ptu'].mean():9.5f} | (train pTU mean {res['train']['ptu'].mean():.5f})")
+    print(f"{ID + ' (ID)':14s} {res[ID]['ptu'].mean():9.5f} | (train pTU mean {res['train']['ptu'].mean():.5f})")
     for name in eval_sets()[1:]:
         r = {"ood": name, "ptu_mean": float(res[name]["ptu"].mean())}
         line = f"{name:14s} {r['ptu_mean']:9.5f} | "
         for m in methods:
-            a, f = ood_metrics(scores["MNIST"][m], scores[name][m])
+            a, f = ood_metrics(scores[ID][m], scores[name][m])
             r[m] = {"auroc": a, "fpr95": f}
             line += f"{'':9s} {a:5.1f} {f:5.1f} | "
-        r["layer_auroc"] = [ood_metrics(res["MNIST"]["layers"][:, l], res[name]["layers"][:, l])[0] for l in range(L)]
+        r["layer_auroc"] = [ood_metrics(res[ID]["layers"][:, l], res[name]["layers"][:, l])[0] for l in range(L)]
         print(line + " ".join(f"{x:5.1f}" for x in r["layer_auroc"]))
         rows.append(r)
     avg = {m: {k: float(np.mean([r[m][k] for r in rows])) for k in ("auroc", "fpr95")} for m in methods}
@@ -131,7 +131,7 @@ def main():
     print(f"{'test set':14s} " + " ".join(f"{'m=' + str(m):>16s}" for m in sizes) + "   (rejection rate % / median p)")
     for name in eval_sets():
         tests[name] = {}
-        line = f"{name + (' (ID)' if name == 'MNIST' else ''):14s} "
+        line = f"{name + (' (ID)' if name == ID else ''):14s} "
         for m in sizes:
             pv = []
             for _ in range(reps):
@@ -152,7 +152,7 @@ def main():
     bins = np.logspace(np.log10(np.quantile(allv, 0.002)), np.log10(np.quantile(allv, 0.998)), 60)
     for name in eval_sets():
         axes[0].hist(res[name]["ptu"], bins=bins, histtype="step", density=True,
-                     lw=2.2 if name == "MNIST" else 1, label=name + (" (ID)" if name == "MNIST" else ""))
+                     lw=2.2 if name == ID else 1, label=name + (" (ID)" if name == ID else ""))
     axes[0].set_xscale("log")
     axes[0].set_xlabel("pTU (log scale)")
     axes[0].set_ylabel("density")
@@ -160,7 +160,7 @@ def main():
     axes[0].legend(fontsize=7)
     for name in eval_sets():
         axes[1].plot(sizes, [tests[name][m]["reject_rate"] for m in sizes], marker="o",
-                     lw=2.2 if name == "MNIST" else 1, label=name + (" (ID)" if name == "MNIST" else ""))
+                     lw=2.2 if name == ID else 1, label=name + (" (ID)" if name == ID else ""))
     axes[1].axhline(5, color="k", ls="--", lw=0.8)
     axes[1].set_xlabel("samples per test set m")
     axes[1].set_ylabel("H0 rejected (%)")

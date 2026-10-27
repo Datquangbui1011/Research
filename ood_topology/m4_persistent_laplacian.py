@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from common import (CACHE_DIR, RESULTS_DIR, activation_graphs, eval_sets, load_dataset, load_model,
+from common import (ID, CACHE_DIR, RESULTS_DIR, activation_graphs, eval_sets, load_dataset, load_model,
                     mean_net_pds, msp_score, ood_metrics)
 from m2_topological_uncertainty import class_mean_pds, tu_score
 
@@ -75,7 +75,7 @@ def main():
     seed = ap.parse_args().seed
 
     cache = CACHE_DIR / f"pd_pl_s{seed}.pt"
-    tr_pd = mean_net_pds(seed, "MNIST", "train", 10000)
+    tr_pd = mean_net_pds(seed, ID, "train", 10000)
     # quantiles of the nonzero training MST weights (most layer-1 weights are 0: black pixels)
     thresholds = [np.quantile(pd.numpy()[pd.numpy() > 0], QUANTILES) for pd in tr_pd["pds"]]
     if cache.exists():
@@ -84,7 +84,7 @@ def main():
         model = load_model(seed)
         weights = model.sample_weights(mean=True)
         res = {}
-        Xtr, _ = load_dataset("MNIST", "train", n=N_TRAIN_PL, seed=11)
+        Xtr, _ = load_dataset(ID, "train", n=N_TRAIN_PL, seed=11)
         sets = [("train", Xtr)] + [(n, load_dataset(n, "test", n=2000)[0][:N_EVAL_PL]) for n in eval_sets()]
         for name, X in sets:
             f, lg = pl_features(weights, X, thresholds)
@@ -125,13 +125,13 @@ def main():
         line = f"{name:14s} | "
         for v in names:
             if v in variants:
-                s_id, s_ood = scores[v]["MNIST"][0], scores[v][name][0]
+                s_id, s_ood = scores[v][ID][0], scores[v][name][0]
             else:
-                s_id, s_ood = (tu["MNIST"], tu[name]) if v.startswith("TU") else (msp["MNIST"], msp[name])
+                s_id, s_ood = (tu[ID], tu[name]) if v.startswith("TU") else (msp[ID], msp[name])
             a, f = ood_metrics(s_id, s_ood)
             r[v] = {"auroc": a, "fpr95": f}
             line += f"{'':9s}{a:5.1f} / {f:5.1f} | "
-        r["layer_auroc"] = [ood_metrics(scores["PL full"]["MNIST"][1][:, l], scores["PL full"][name][1][:, l])[0]
+        r["layer_auroc"] = [ood_metrics(scores["PL full"][ID][1][:, l], scores["PL full"][name][1][:, l])[0]
                             for l in range(3)]
         print(line + " ".join(f"{x:5.1f}" for x in r["layer_auroc"]))
         rows.append(r)
@@ -156,8 +156,8 @@ def main():
         lo, hi = np.quantile(np.concatenate(list(vals.values())), [0.005, 0.995])
         bins = np.linspace(lo, hi, 50)
         for n, v in vals.items():
-            ax.hist(v, bins=bins, histtype="step", density=True, lw=2.2 if n == "MNIST" else 1,
-                    label=n + (" (ID)" if n == "MNIST" else ""))
+            ax.hist(v, bins=bins, histtype="step", density=True, lw=2.2 if n == ID else 1,
+                    label=n + (" (ID)" if n == ID else ""))
         ax.set_xlabel(f"{f} of L(K_t), layer 1, t = q0.75")
         ax.set_ylabel("density")
     axes[0].set_title("[4] zero eigenvalues = beta_0 (PH part)")

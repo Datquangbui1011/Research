@@ -15,15 +15,44 @@ import torchvision.transforms as T
 
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
-CACHE_DIR = ROOT / "cache"
-RESULTS_DIR = ROOT / "results"
-for d in (DATA_DIR, CACHE_DIR, RESULTS_DIR):
-    d.mkdir(exist_ok=True)
+DATA_CACHE = ROOT / "cache"  # preprocessed datasets, shared by every experiment
+
+# In-distribution (training) dataset. Unset = the original MNIST study (results/, cache/).
+# Set OOD_ID=<dataset> for the Phase 1 multi-dataset study (results/phase1/<ID>/, cache/phase1/<ID>/).
+ID = os.environ.get("OOD_ID", "MNIST")
+PHASE1 = "OOD_ID" in os.environ
+CACHE_DIR = DATA_CACHE / "phase1" / ID if PHASE1 else DATA_CACHE
+RESULTS_DIR = ROOT / "results" / "phase1" / ID if PHASE1 else ROOT / "results"
+for d in (DATA_DIR, DATA_CACHE, CACHE_DIR, RESULTS_DIR):
+    d.mkdir(parents=True, exist_ok=True)
 
 # Architecture used for all OOD experiments in Yeh & Yang (pTU), Sec. 5.2-5.4 / App.
 ARCH = [784, 64, 16, 10]
 
-OOD_SETS = ["FashionMNIST", "KMNIST", "CIFAR10", "SVHN", "Gaussian", "Uniform", "MNIST-flip"]
+# Phase 1 OOD sets per training set, grouped as in OpenOOD: near-OOD (new classes, similar
+# style), far-OOD (very different images), and covariate shift (same classes, changed images).
+# For MNIST the near/far sets are OpenOOD's MNIST benchmark plus the sets of the original study.
+_FAR_GRAY = ["CIFAR10", "SVHN", "Textures", "TinyImageNet", "Places365", "Gaussian", "Uniform"]
+OOD_GROUPS = {
+    "MNIST": {"near": ["NotMNIST", "FashionMNIST", "KMNIST"], "far": _FAR_GRAY,
+              "shift": ["MNIST-flip", "MNIST-C"]},
+    "FashionMNIST": {"near": ["MNIST", "KMNIST", "NotMNIST"], "far": _FAR_GRAY, "shift": ["FashionMNIST-flip"]},
+    "KMNIST": {"near": ["MNIST", "FashionMNIST", "NotMNIST"], "far": _FAR_GRAY, "shift": ["KMNIST-flip"]},
+    # SVHN as in OpenOOD's CIFAR benchmarks: natural-image sets are near-OOD; MNIST has the same
+    # digit classes in another style, so it is a covariate shift rather than new classes.
+    "SVHN": {"near": ["CIFAR10", "TinyImageNet"],
+             "far": ["Places365", "Textures", "FashionMNIST", "KMNIST", "NotMNIST", "Gaussian", "Uniform"],
+             "shift": ["MNIST", "SVHN-flip"]},
+}
+if PHASE1:
+    OOD_SETS = [n for g in ("near", "far", "shift") for n in OOD_GROUPS[ID][g]]
+else:
+    OOD_SETS = ["FashionMNIST", "KMNIST", "CIFAR10", "SVHN", "Gaussian", "Uniform", "MNIST-flip"]
+
+
+def ood_group(name):
+    """'near', 'far' or 'shift' for a Phase 1 OOD set."""
+    return next(g for g, names in OOD_GROUPS[ID].items() if name in names)
 
 
 # --------------------------------------------------------------------------- data
@@ -45,7 +74,7 @@ HF_TEST_FILES = {  # official Hugging Face copies of the test splits (much faste
 }
 
 
-def _hf_parquet(name, transform):
+def _hf_parquet(name, transform, split="test"):
     import io
     import urllib.request
 
@@ -53,7 +82,8 @@ def _hf_parquet(name, transform):
     from PIL import Image
 
     url, col = HF_TEST_FILES[name]
-    f = DATA_DIR / "hf" / f"{name.lower()}_test.parquet"
+    url = url.replace("test-00000", f"{split}-00000")
+    f = DATA_DIR / "hf" / f"{name.lower()}_{split}.parquet"
     if not f.exists():
         f.parent.mkdir(exist_ok=True)
         urllib.request.urlretrieve(url, f)
@@ -62,9 +92,52 @@ def _hf_parquet(name, transform):
     return list(zip(imgs, t["label"]))
 
 
+OPENOOD_DIR = DATA_DIR / "openood" / "images_classic"  # OpenOOD's copies (scripts/download/download.py)
+FOLDER_SETS = {  # name -> (glob under OPENOOD_DIR, max images kept)
+    "NotMNIST": ("notmnist/*/*.png", 10000),
+    "Textures": ("texture/*/*.jpg", None),
+    "TinyImageNet": ("tin/val/images/*.JPEG", None),
+    "Places365": ("places365/*/*.jpg", 10000),
+}
+
+
+def _image_folder(name, transform):
+    """Grayscale 28x28 tensors from an OpenOOD image folder (unreadable files are skipped)."""
+    from PIL import Image
+
+    pattern, cap = FOLDER_SETS[name]
+    files = sorted(OPENOOD_DIR.glob(pattern))
+    if cap is not None and len(files) > cap:
+        keep = torch.randperm(len(files), generator=torch.Generator().manual_seed(126))[:cap]
+        files = [files[i] for i in sorted(keep.tolist())]
+    imgs = []
+    for f in files:
+        try:
+            imgs.append(transform(Image.open(f).convert("RGB")))
+        except OSError:
+            pass
+    return list(zip(imgs, [0] * len(imgs)))
+
+
+def _mnist_c():
+    """MNIST-C (Mu & Gilmer 2019): 15 corruptions of the MNIST test set, 10000 images mixed evenly."""
+    root = DATA_DIR / "mnist_c" / "mnist_c"
+    kinds = sorted(p.name for p in root.iterdir() if p.is_dir() and p.name != "identity")
+    g = torch.Generator().manual_seed(127)
+    xs, ys = [], []
+    per = 10000 // len(kinds) + 1
+    for k in kinds:
+        X = torch.from_numpy(np.load(root / k / "test_images.npy")).float().reshape(-1, 784) / 255
+        y = torch.from_numpy(np.load(root / k / "test_labels.npy")).long()
+        idx = torch.randperm(len(X), generator=g)[:per]
+        xs.append(X[idx])
+        ys.append(y[idx])
+    return torch.cat(xs)[:10000], torch.cat(ys)[:10000]
+
+
 def load_dataset(name, split="test", n=None, seed=0):
     """Load a dataset as (X[N,784] in [0,1], y[N]). Labels of OOD sets are irrelevant."""
-    cache = CACHE_DIR / f"data_{name}_{split}.pt"
+    cache = DATA_CACHE / f"data_{name}_{split}.pt"
     if cache.exists():
         X, y = torch.load(cache)
     else:
@@ -79,6 +152,10 @@ def load_dataset(name, split="test", n=None, seed=0):
             ds = torchvision.datasets.KMNIST(DATA_DIR, train=train, download=True, transform=plain)
         elif name in ("CIFAR10", "SVHN") and split == "test":
             ds = _hf_parquet(name, gray)
+        elif name == "SVHN" and split == "train":
+            ds = _hf_parquet(name, gray, split="train")
+        elif name in FOLDER_SETS:
+            ds = _image_folder(name, gray)
         else:
             ds = None
         if ds is not None:
@@ -92,9 +169,11 @@ def load_dataset(name, split="test", n=None, seed=0):
             g = torch.Generator().manual_seed(124)
             X = torch.rand(10000, 784, generator=g)
             y = torch.zeros(10000, dtype=torch.long)
-        elif name == "MNIST-flip":
+        elif name == "MNIST-C":
+            X, y = _mnist_c()
+        elif name.endswith("-flip"):
             # TU paper Sec. 4.3 corruption shift: switch n random pixels x -> 1 - x (here n = 100, ~13%)
-            X, y = load_dataset("MNIST", "test")
+            X, y = load_dataset(name[:-len("-flip")], "test")
             g = torch.Generator().manual_seed(125)
             X = X.clone()
             idx = torch.argsort(torch.rand(len(X), 784, generator=g), dim=1)[:, :100]
@@ -245,8 +324,8 @@ N_TRAIN_REF = 10000  # training samples used to build reference statistics
 
 
 def eval_sets():
-    """Evaluation sets: 'MNIST' (in-distribution test) followed by the OOD sets."""
-    return ["MNIST"] + OOD_SETS
+    """Evaluation sets: the in-distribution test set followed by the OOD sets."""
+    return [ID] + OOD_SETS
 
 
 def mean_net_pds(seed, name, split="test", n=N_EVAL):

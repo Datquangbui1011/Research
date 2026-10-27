@@ -1,11 +1,11 @@
-"""Train the Bayes-by-Backprop MLP 784-64-16-10 on MNIST (pTU paper setup)."""
+"""Train the Bayes-by-Backprop MLP 784-64-16-10 (pTU paper setup) on the in-distribution set (OOD_ID, default MNIST)."""
 import argparse
 import copy
 
 import torch
 import torch.nn.functional as F
 
-from common import CACHE_DIR, BayesMLP, load_dataset
+from common import ID, CACHE_DIR, BayesMLP, load_dataset
 
 
 def main():
@@ -19,11 +19,11 @@ def main():
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
-    X, y = load_dataset("MNIST", "train")
+    X, y = load_dataset(ID, "train")
     perm = torch.randperm(len(X))
     va, tr = perm[:5000], perm[5000:]
     Xtr, ytr, Xva, yva = X[tr], y[tr], X[va], y[va]
-    Xte, yte = load_dataset("MNIST", "test")
+    Xte, yte = load_dataset(ID, "test")
 
     model = BayesMLP()
     opt = torch.optim.Adam(model.parameters(), lr=1e-3)
