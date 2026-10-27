@@ -1,0 +1,89 @@
+  reference batch descriptors done
+  computed descriptors for SVHN
+  computed descriptors for CIFAR10
+  computed descriptors for TinyImageNet
+  computed descriptors for Places365
+  computed descriptors for Textures
+  computed descriptors for FashionMNIST
+  computed descriptors for KMNIST
+  computed descriptors for NotMNIST
+  computed descriptors for Gaussian
+  computed descriptors for Uniform
+  computed descriptors for MNIST
+  computed descriptors for SVHN-flip
+
+(a) batch level, m = 10 images/batch, 200 ID vs 200 OOD batches (AUROC / FPR95)
+OOD set        | [5] descriptors |  TU batch mean | MSP batch mean
+CIFAR10        |   89.3 /  48.0 |   57.7 /  88.5 |   74.8 /  80.5
+TinyImageNet   |   92.7 /  41.0 |   50.0 /  91.0 |   79.8 /  71.5
+Places365      |   91.7 /  51.0 |   44.5 /  94.0 |   78.2 /  74.0
+Textures       |   81.6 /  88.0 |   65.4 /  92.5 |   99.7 /   0.5
+FashionMNIST   |   99.3 /   5.5 |   95.3 /  20.5 |   59.2 /  93.5
+KMNIST         |  100.0 /   0.0 |  100.0 /   0.0 |   40.7 /  98.5
+NotMNIST       |  100.0 /   0.0 |   99.9 /   0.5 |   28.5 /  99.5
+Gaussian       |  100.0 /   0.0 |   97.3 /  12.5 |   99.8 /   0.0
+Uniform        |  100.0 /   0.0 |    1.6 / 100.0 |   97.4 /  15.0
+MNIST          |  100.0 /   0.0 |  100.0 /   0.0 |   12.2 / 100.0
+SVHN-flip      |   87.0 /  73.5 |   20.8 / 100.0 |   80.3 /  77.5
+average        |   94.7 /  27.9 |   66.6 /  54.5 |   68.2 /  64.6
+
+(a) batch level, m = 20 images/batch, 100 ID vs 100 OOD batches (AUROC / FPR95)
+OOD set        | [5] descriptors |  TU batch mean | MSP batch mean
+CIFAR10        |   99.3 /   4.0 |   61.5 /  85.0 |   82.2 /  70.0
+TinyImageNet   |  100.0 /   0.0 |   50.9 /  93.0 |   87.6 /  51.0
+Places365      |   99.9 /   0.0 |   42.1 /  96.0 |   85.2 /  55.0
+Textures       |   95.6 /  21.0 |   71.3 /  90.0 |  100.0 /   0.0
+FashionMNIST   |  100.0 /   0.0 |   99.0 /   6.0 |   62.8 /  94.0
+KMNIST         |  100.0 /   0.0 |  100.0 /   0.0 |   36.9 / 100.0
+NotMNIST       |  100.0 /   0.0 |  100.0 /   0.0 |   22.3 /  99.0
+Gaussian       |  100.0 /   0.0 |   99.8 /   0.0 |  100.0 /   0.0
+Uniform        |  100.0 /   0.0 |    0.1 / 100.0 |   99.8 /   1.0
+MNIST          |  100.0 /   0.0 |  100.0 /   0.0 |    5.6 / 100.0
+SVHN-flip      |   99.6 /   3.0 |   12.3 / 100.0 |   88.3 /  53.0
+average        |   99.5 /   2.5 |   67.0 /  51.8 |   70.1 /  56.6
+
+(a) batch level, m = 50 images/batch, 40 ID vs 40 OOD batches (AUROC / FPR95)
+OOD set        | [5] descriptors |  TU batch mean | MSP batch mean
+CIFAR10        |  100.0 /   0.0 |   69.1 /  70.0 |   92.1 /  50.0
+TinyImageNet   |  100.0 /   0.0 |   52.3 /  82.5 |   96.9 /  22.5
+Places365      |  100.0 /   0.0 |   37.8 /  97.5 |   93.9 /  22.5
+Textures       |  100.0 /   0.0 |   80.2 /  65.0 |  100.0 /   0.0
+FashionMNIST   |  100.0 /   0.0 |  100.0 /   0.0 |   68.9 /  92.5
+KMNIST         |  100.0 /   0.0 |  100.0 /   0.0 |   28.5 / 100.0
+NotMNIST       |  100.0 /   0.0 |  100.0 /   0.0 |   11.3 / 100.0
+Gaussian       |  100.0 /   0.0 |  100.0 /   0.0 |  100.0 /   0.0
+Uniform        |  100.0 /   0.0 |    0.0 / 100.0 |  100.0 /   0.0
+MNIST          |  100.0 /   0.0 |  100.0 /   0.0 |    1.2 / 100.0
+SVHN-flip      |  100.0 /   0.0 |    2.2 / 100.0 |   97.2 /  22.5
+average        |  100.0 /   0.0 |   67.4 /  46.8 |   71.8 /  46.4
+
+mean batch descriptors, m = 50 (H0 / H1 total persistence, TwoNN ID) per layer:
+  set                              input                 hidden1                 hidden2                  logits
+  reference (train)    174.1/  1.18/ 10.8    252.1/  5.77/  6.4    247.7/  4.61/  5.3    237.2/  4.51/  5.3
+  SVHN              177.4/  1.27/ 10.3    267.0/  6.21/  6.2    263.4/  5.28/  5.4    247.5/  5.78/  5.5
+  CIFAR10           267.1/  1.44/ 13.9    328.7/  9.79/  7.0    323.1/  7.58/  6.1    291.2/  7.87/  6.3
+  TinyImageNet      285.6/  1.46/ 14.3    321.4/  9.22/  7.1    311.5/  6.91/  6.0    272.5/  7.34/  6.8
+  Places365         278.1/  1.90/ 13.7    309.1/  9.34/  7.4    304.1/  7.00/  5.9    270.8/  7.80/  6.3
+  Textures          177.4/  0.30/  9.4    183.6/  1.93/  6.2    165.9/  1.57/  6.5    145.9/  2.48/  6.4
+  FashionMNIST      322.7/  3.21/  9.3    315.7/  9.92/  5.3    337.0/  9.10/  5.0    331.6/  7.26/  5.1
+  KMNIST            484.8/  2.46/ 18.8    426.9/ 17.33/  5.9    482.8/ 16.76/  5.3    418.4/ 11.80/  5.9
+  NotMNIST          559.7/ 16.61/  6.7    436.8/ 15.15/  4.3    434.5/  8.87/  4.2    417.4/ 12.28/  4.5
+  Gaussian          408.6/  2.05/108.4    142.5/  5.95/  7.5    159.3/  5.89/  6.1    133.3/  4.20/  6.7
+  Uniform           536.5/  5.87/124.0    191.2/  7.94/  7.4    200.2/  5.82/  6.3    176.9/  5.99/  6.6
+  MNIST             362.6/  7.20/ 10.6    413.1/ 16.18/  5.0    498.1/ 18.03/  4.4    481.2/ 16.09/  4.6
+  SVHN-flip         270.6/  0.04/ 27.6    228.0/  5.24/  6.8    225.2/  4.60/  5.8    208.9/  5.12/  5.9
+
+(b) per sample, k = 20 nearest training points per layer, first 1000 images (AUROC / FPR95)
+OOD set        |  local PH (dH0, dH1) |       local dH0 only |       local dH1 only |         kNN distance
+CIFAR10        |         72.8 /  72.6 |         77.3 /  65.9 |         45.8 /  94.5 |         74.3 /  69.2 | 
+TinyImageNet   |         72.4 /  76.3 |         79.1 /  69.9 |         41.7 /  96.3 |         76.9 /  75.0 | 
+Places365      |         72.6 /  77.7 |         79.7 /  70.4 |         42.6 /  96.0 |         76.9 /  75.2 | 
+Textures       |         54.4 /  91.4 |         61.6 /  94.1 |         46.8 /  91.9 |         65.5 /  96.2 | 
+FashionMNIST   |         92.4 /  32.8 |         95.5 /  24.5 |         41.7 /  94.4 |         95.9 /  22.7 | 
+KMNIST         |         98.4 /   6.0 |         98.9 /   2.7 |         38.3 /  94.1 |         98.7 /   3.3 | 
+NotMNIST       |         98.0 /   4.4 |         98.7 /   3.7 |         36.8 /  96.0 |         99.0 /   4.0 | 
+Gaussian       |         88.4 /  98.7 |         93.3 /  96.5 |         36.3 /  99.3 |         91.3 / 100.0 | 
+Uniform        |         96.4 /   0.0 |         97.5 /   0.0 |         38.6 /  98.7 |         96.9 /   0.0 | 
+MNIST          |         98.3 /   8.7 |         98.8 /   4.7 |         37.3 /  92.3 |         98.9 /   3.0 | 
+SVHN-flip      |         61.3 /  92.6 |         69.8 /  88.8 |         43.2 /  97.4 |         68.3 /  91.7 | 
+average        |         82.3 /  51.0 |         86.4 /  47.4 |         40.8 /  95.5 |         85.7 /  49.1
