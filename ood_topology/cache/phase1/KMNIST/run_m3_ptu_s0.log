@@ -1,0 +1,43 @@
+  computed pTU for train
+  computed pTU for KMNIST
+  computed pTU for MNIST
+  computed pTU for FashionMNIST
+  computed pTU for NotMNIST
+  computed pTU for CIFAR10
+  computed pTU for SVHN
+  computed pTU for Textures
+  computed pTU for TinyImageNet
+  computed pTU for Places365
+  computed pTU for Gaussian
+  computed pTU for Uniform
+  computed pTU for KMNIST-flip
+
+(a) per-sample   pTU mean |       pTU AUROC FPR95 |        MI AUROC FPR95 |   Entropy AUROC FPR95 | MSP (BMA) AUROC FPR95 | pTU per-layer AUROC
+KMNIST (ID)      0.17709 | (train pTU mean 0.20799)
+MNIST            0.11301 |            24.0 100.0 |            78.4  89.6 |            82.5  74.8 |            81.7  76.0 |  30.4  27.4  25.5
+FashionMNIST     0.18579 |            52.6  92.3 |            72.0  92.8 |            72.6  88.4 |            72.9  86.5 |  42.6  51.4  53.9
+NotMNIST         0.41308 |            88.7  38.1 |            76.5  67.5 |            66.7  92.0 |            67.3  89.8 |  87.6  88.4  86.7
+CIFAR10          0.29802 |            75.0  67.5 |            78.0  69.0 |            71.6  89.6 |            71.8  87.4 |  67.2  63.0  78.2
+SVHN             0.22677 |            56.4  79.3 |            80.0  68.1 |            76.7  89.1 |            76.8  84.9 |  53.3  44.8  60.6
+Textures         0.24806 |            65.2  77.0 |            74.0  83.3 |            69.6  88.2 |            69.0  88.1 |  60.9  49.9  69.3
+TinyImageNet     0.27089 |            70.8  74.2 |            77.0  71.9 |            72.0  88.2 |            72.1  85.2 |  67.1  58.2  73.9
+Places365        0.27154 |            70.2  72.2 |            76.1  72.8 |            71.9  89.3 |            71.9  86.8 |  67.3  57.7  73.1
+Gaussian         0.07542 |             7.1 100.0 |            84.0  97.7 |            93.9  37.4 |            91.7  49.6 |  60.6   2.4   8.7
+Uniform          0.27392 |            87.4  97.4 |            79.3  64.7 |            70.6  93.8 |            70.5  90.8 |  84.9  71.5  87.8
+KMNIST-flip      0.23111 |            72.1  91.5 |            76.3  76.0 |            72.3  87.8 |            72.2  86.2 |  85.5  64.2  69.0
+average                  |            60.9  80.9 |            77.4  77.6 |            74.6  83.5 |            74.3  82.8 |  64.3  52.6  62.4
+
+(b) Algorithm 2 permutation test (W1 on pTU, 1000 permutations, alpha = 0.05, 50 repeats)
+test set                   m=20             m=50            m=100   (rejection rate % / median p)
+KMNIST (ID)           18 / 0.205       42 / 0.109       60 / 0.027
+MNIST                100 / 0.000      100 / 0.000      100 / 0.000
+FashionMNIST           6 / 0.319       18 / 0.192       36 / 0.179
+NotMNIST             100 / 0.000      100 / 0.000      100 / 0.000
+CIFAR10               54 / 0.032       96 / 0.001      100 / 0.000
+SVHN                   8 / 0.196       54 / 0.047       68 / 0.032
+Textures              26 / 0.191       44 / 0.068       78 / 0.005
+TinyImageNet          30 / 0.136       70 / 0.013       94 / 0.002
+Places365             28 / 0.188       62 / 0.013       96 / 0.000
+Gaussian             100 / 0.000      100 / 0.000      100 / 0.000
+Uniform              100 / 0.000      100 / 0.000      100 / 0.000
+KMNIST-flip           38 / 0.096       62 / 0.032       98 / 0.001

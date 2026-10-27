@@ -1,0 +1,43 @@
+  computed PL spectra for train
+  computed PL spectra for KMNIST
+  computed PL spectra for MNIST
+  computed PL spectra for FashionMNIST
+  computed PL spectra for NotMNIST
+  computed PL spectra for CIFAR10
+  computed PL spectra for SVHN
+  computed PL spectra for Textures
+  computed PL spectra for TinyImageNet
+  computed PL spectra for Places365
+  computed PL spectra for Gaussian
+  computed PL spectra for Uniform
+  computed PL spectra for KMNIST-flip
+
+thresholds (MST-weight quantiles (0.5, 0.75, 0.9)) per layer: ['0.422', '0.584', '0.755']; ['1.552', '2.447', '3.424']; ['4.151', '5.861', '7.975']
+OOD set        |               PL full |  beta0 only (PH info) | nonzero spectrum only |                TU [2] |                   MSP | PL-full per-layer AUROC
+MNIST          |           57.9 /  94.9 |           53.2 /  95.4 |           59.0 /  94.7 |           57.9 /  95.3 |           83.2 /  73.4 |  46.4  57.7  65.4
+FashionMNIST   |           73.9 /  72.9 |           75.5 /  68.3 |           72.3 /  74.8 |           72.5 /  85.9 |           73.8 /  84.6 |  75.9  61.3  60.6
+NotMNIST       |           89.6 /  35.4 |           91.7 /  29.0 |           88.5 /  37.9 |           83.1 /  53.1 |           67.8 /  88.6 |  91.3  72.4  69.1
+CIFAR10        |           73.2 /  70.6 |           74.1 /  65.4 |           71.9 /  72.4 |           79.7 /  75.1 |           72.1 /  87.0 |  78.1  66.8  61.7
+SVHN           |           80.7 /  58.4 |           77.3 /  60.5 |           80.6 /  60.0 |           80.0 /  71.7 |           76.9 /  83.5 |  82.8  75.3  63.6
+Textures       |           78.0 /  62.3 |           77.2 /  61.2 |           77.0 /  65.1 |           81.4 /  71.7 |           69.3 /  87.1 |  80.6  70.3  66.0
+TinyImageNet   |           71.3 /  74.2 |           71.4 /  69.8 |           70.3 /  75.9 |           77.4 /  77.6 |           72.1 /  84.4 |  75.3  64.8  62.1
+Places365      |           71.4 /  75.4 |           71.8 /  70.6 |           70.3 /  76.9 |           77.9 /  80.4 |           72.9 /  86.1 |  76.3  65.1  58.8
+Gaussian       |           95.8 /  23.1 |           92.9 /  62.1 |           95.9 /  24.1 |           87.4 /  79.9 |           92.3 /  47.4 |  80.5  98.6  67.6
+Uniform        |           86.7 /  96.3 |           96.1 /  16.8 |           80.5 /  99.5 |           79.9 / 100.0 |           70.5 /  90.1 |  94.9  39.5  73.2
+KMNIST-flip    |           71.3 /  94.2 |           77.7 /  92.2 |           68.6 /  94.8 |           65.7 /  92.0 |           72.8 /  85.9 |  63.3  62.9  57.4
+average        |           77.3 /  68.9 |           78.1 /  62.8 |           75.9 /  70.6 |           76.6 /  80.2 |           74.9 /  81.6 |  76.9  66.8  64.1
+
+mean features, layer 1, threshold q=0.75:        beta0        edges  lambda_min+   lambda_max   lambda_std
+  train             767.419       86.284        0.094        9.336        1.836
+  KMNIST            771.361       81.031        0.107        8.633        1.741
+  MNIST             790.801       58.465        0.111        7.406        1.578
+  FashionMNIST      759.935       92.573        0.235        9.743        1.757
+  NotMNIST          626.501      272.431        0.051       18.397        2.775
+  CIFAR10           736.836      121.522        0.174       11.677        1.934
+  SVHN              755.421      101.428        0.355        9.252        1.594
+  Textures          749.224      106.133        0.256        9.515        1.666
+  TinyImageNet      744.158      113.247        0.157       11.239        1.912
+  Places365         755.753       99.325        0.193       11.070        1.867
+  Gaussian          820.990       27.102        0.368        4.733        1.076
+  Uniform           688.099      169.312        0.018       11.951        2.122
+  KMNIST-flip       715.644      142.126        0.023       10.216        1.979

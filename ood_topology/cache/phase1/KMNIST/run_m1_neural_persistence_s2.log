@@ -1,0 +1,17 @@
+[1a] original NP (weights only): network NP = 0.7819, per layer = [0.7541999816894531, 0.791100025177002, 0.8004999756813049]
+     -> identical for every input, so as an OOD score AUROC = 50.0 on every set
+
+OOD set         NP mean | NP AUROC  FPR95 | raw AUROC | MSP AUROC  FPR95
+KMNIST (ID)      0.8523 |
+MNIST            0.8455 |     48.4   91.3 |      40.9 |      82.5   79.1
+FashionMNIST     0.8409 |     55.4   81.7 |      36.0 |      71.5   86.9
+NotMNIST         0.8369 |     59.7   84.7 |      30.2 |      65.9   90.8
+CIFAR10          0.8425 |     55.8   90.8 |      35.8 |      68.3   91.8
+SVHN             0.8477 |     52.3   91.3 |      42.9 |      69.6   93.7
+Textures         0.8508 |     36.3   97.2 |      46.5 |      69.3   92.8
+TinyImageNet     0.8431 |     54.9   91.8 |      36.7 |      68.2   91.3
+Places365        0.8389 |     58.7   89.7 |      31.7 |      66.1   91.5
+Gaussian         0.8432 |     61.1   88.8 |      36.0 |      86.2   73.0
+Uniform          0.8530 |     39.7   99.6 |      49.1 |      65.2   96.2
+KMNIST-flip      0.8383 |     59.2   83.5 |      32.4 |      72.1   86.4
+average                 |     52.8   90.0 |      38.0 |      71.4   88.5
