@@ -169,11 +169,39 @@ def p2_main():
     (TAB / "p2_main.tex").write_text("\n".join(lines) + "\n")
 
 
+def p2_batch():
+    res = ROOT / "results" / "phase2"
+    files = {b: [res / f"batch_{b}_s{s}.json" for s in SEEDS] for b in ("cifar10", "cifar100")}
+    if not all(f.exists() for v in files.values() for f in v):
+        (TAB / "p2_batch.tex").write_text("\\todo{Part II batch-level table: run phase2/batch.py}\n")
+        return
+    data = {b: [json.loads(f.read_text()) for f in v] for b, v in files.items()}
+    names = list(data["cifar10"][0]["10"])
+    lines = ["\\begin{table}[t]", "\\centering", "\\setlength{\\tabcolsep}{4pt}\\small",
+             "\\begin{tabular}{@{}clcccc@{}}", "\\toprule",
+             " & & \\multicolumn{2}{c}{CIFAR-10} & \\multicolumn{2}{c}{CIFAR-100} \\\\",
+             "\\cmidrule(lr){3-4}\\cmidrule(lr){5-6}", "$m$ & Method & Near & Far & Near & Far \\\\", "\\midrule"]
+    for m in ("10", "20"):
+        M = np.array([[np.mean([d[m][n][g] for d in data[b]]) for b in ("cifar10", "cifar100") for g in ("near", "far")]
+                      for n in names])
+        cols = [bold_best(M[:, c]) for c in range(M.shape[1])]
+        for k, n in enumerate(names):
+            lead = f"\\multirow{{{len(names)}}}{{*}}{{{m}}}" if k == 0 else ""
+            lines.append(f"{lead} & {{{n}}} & " + " & ".join(cols[c][k] for c in range(4)) + " \\\\")
+        if m == "10":
+            lines.append("\\midrule")
+    lines += ["\\bottomrule", "\\end{tabular}",
+              "\\caption{Part II, batch-level detection: AUROC (\\%) over batches of $m$ images from one source "
+              "(mean over 3 checkpoints).}", "\\label{tab:p2-batch}", "\\end{table}"]
+    (TAB / "p2_batch.tex").write_text("\n".join(lines) + "\n")
+
+
 def main():
     p1_sets()
     p1_main()
     p1_batch()
     p2_main()
+    p2_batch()
     shutil.copy(ROOT / "results" / "phase1" / "summary_phase1.png", FIG / "summary_phase1.png")
     for f in ("p1_findings.tex", "p2_findings.tex"):
         if not (TAB / f).exists():

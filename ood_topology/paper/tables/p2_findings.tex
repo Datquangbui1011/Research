@@ -1,1 +1,27 @@
-\todo{findings}
+\begin{itemize}
+  \item \textbf{On a well-trained ResNet-18, no per-image topological score beats the output-based
+  baselines.} The best one, the $\beta_0$ curve of the fc activation graph ([4]), reaches 83.6 / 88.4
+  (near / far) on CIFAR-10 against 88.0 / 90.7 for MSP and 90.6 / 93.0 for KNN; on CIFAR-100 all
+  graph-based scores stay around 67--71, about ten points below MSP. This reverses Part I, where
+  the same scores beat MSP: the gains of topology appeared where the softmax of a small MLP was
+  poorly calibrated, and they do not carry over to a strong convolutional network.
+  \item \textbf{One dense layer is a narrow view.} ResNet-18 has a single dense layer, so [1]--[4]
+  see only the $512\to K$ map from pooled features to logits, which carries the same information as
+  the logits and the penultimate features that MSP, EBO and KNN already use. Within this view the
+  ordering of Part I holds: $\beta_0$ and the full Laplacian spectrum (82--88 on CIFAR-10) are better
+  than TU (74--80) and NP (72--75).
+  \item \textbf{The pTU direction flips.} With a last-layer Laplace posterior, OOD inputs have
+  \emph{lower} topological variance than ID inputs (AUROC 25--35, i.e.\ 65--75 if the sign is
+  reversed). The two-sided variant recovers 60--68 but remains weak, while the mutual information
+  of the same posterior matches MSP (88.4 / 91.4 on CIFAR-10). pTU's behaviour depends strongly on
+  the posterior approximation.
+  \item \textbf{Local $\Delta H_0$ on spatially averaged stage features is near chance (50--64).}
+  In Part I it was the strongest per-image score, but there it acted on the raw input and small
+  hidden layers. Here early convolutional stages, averaged over space, mostly encode low-level
+  statistics; distances on normalized penultimate features (KNN, 90.6 / 93.0) are far more
+  informative.
+  \item \textbf{Batches:} on CIFAR-10 every batch score is near perfect (\cref{tab:p2-batch}),
+  including averaged MSP. On CIFAR-100, averaged MSP (96--99) and averaged TU (90--97) beat the
+  point-cloud scores [5] and [6] (71--90): with 100 classes, a batch of 10--20 images covers the
+  class structure too sparsely for its point-cloud topology to be stable.
+\end{itemize}

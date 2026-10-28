@@ -53,11 +53,13 @@ protocol. Our study has two parts: (i) a controlled study with a Bayesian MLP tr
 in-distribution datasets (MNIST, Fashion-MNIST, KMNIST, SVHN), each tested against 10--12 OOD
 sets grouped into near-OOD, far-OOD and covariate shift; and (ii) the OpenOOD v1.5 CIFAR-10 and
 CIFAR-100 benchmarks with the released ResNet-18 checkpoints, where our pipeline reproduces the
-published baselines exactly. We find that (1) topology reliably detects the inputs on which
-softmax confidence fails; (2) no per-image topological score wins on every dataset, while
-point-cloud topology on small batches of inputs is consistently strong; (3) simple summaries
-($\beta_0$ curves, local $H_0$ changes) often beat richer ones (full persistent-Laplacian spectra,
-$H_1$ features); and (4) how layers are combined matters as much as the summary itself.
+published baselines exactly. We find that (1) on the MLPs, topological scores reliably detect the
+inputs on which softmax confidence fails, but on the well-trained ResNet-18 no per-image
+topological score beats the output-based baselines; (2) no per-image topological score wins on
+every dataset, while point-cloud topology on small batches of inputs is strong whenever the
+classes are few; (3) simple summaries ($\beta_0$ curves, 0-dimensional features) often beat richer
+ones (full persistent-Laplacian spectra, $H_1$ features); and (4) how layers are combined, and
+which layers are available, matter as much as the summary itself.
 \end{abstract}
 
 \section{Introduction}
@@ -498,16 +500,20 @@ MSP, EBO, MLS and KNN to two decimals, and ViM within one point (\cref{tab:p2-ma
 topological methods are evaluated on exactly the published setting.
 
 \input{tables/p2_main.tex}
+\input{tables/p2_batch.tex}
 
 \paragraph{Findings.}
 \input{tables/p2_findings.tex}
 
 \section{Discussion}
 \label{sec:discussion}
-\paragraph{What topology adds.} Across both parts, the inputs on which softmax confidence fails
-(natural images, textures and noise that the network classifies confidently) are exactly where
-topological scores help most. The signal comes from the \emph{activation pattern} of an input,
-not from its prediction.
+\paragraph{What topology adds, and when.} In Part I, the inputs on which softmax confidence fails
+(natural images, textures and noise that a small MLP classifies confidently) are exactly where
+topological scores help most. In Part II, with a well-trained ResNet-18 whose only dense layer maps
+pooled features to logits, the topological scores see the same information as the output-based
+baselines and do not improve on them. Topology is therefore most useful when the network's own
+confidence is poorly calibrated, and when it can observe several dense layers; extending [1]--[4]
+to convolutional layers (e.g.\ through unrolled convolution graphs) is the main open step.
 \paragraph{Simple versus rich summaries.} The 0-dimensional information (MST weights, $\beta_0$
 curves, local $H_0$ changes) carries most of the signal. Higher-dimensional features ($H_1$) and
 the nonzero persistent-Laplacian eigenvalues add little or hurt on these graphs, which are small,
@@ -524,9 +530,10 @@ distances, so its strength should not be attributed to higher-order topology.
 \section{Conclusion}
 We placed six topological approaches to analysing neural-network layers in one framework,
 implemented them on shared models and evaluated them as OOD detectors on four ID datasets and on
-the OpenOOD CIFAR benchmarks. Topology reliably catches the confident mistakes that output-based
-scores miss, but no single per-image topological score wins everywhere; batch-level point-cloud
-topology and simple 0-dimensional summaries are the most robust.
+the OpenOOD CIFAR benchmarks. On small MLPs, topology catches confident mistakes that output-based
+scores miss; on a well-trained ResNet-18, the topology of its single dense layer adds nothing over
+those scores. No per-image topological score wins everywhere; simple 0-dimensional summaries and,
+for few classes, batch-level point-cloud topology are the most robust.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}
