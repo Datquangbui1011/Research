@@ -1,0 +1,15 @@
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}l>{\raggedright}p{3.4cm}>{\raggedright}p{6.2cm}p{3.2cm}@{}}
+\toprule
+ID set & near-OOD & far-OOD & covariate shift \\
+\midrule
+MNIST & NotMNIST, F-MNIST, KMNIST & CIFAR10, SVHN, Textures, TIN, Places365, Gaussian, Uniform & MNIST-flip, MNIST-C \tabularnewline
+F-MNIST & MNIST, KMNIST, NotMNIST & CIFAR10, SVHN, Textures, TIN, Places365, Gaussian, Uniform & F-MNIST-flip \tabularnewline
+KMNIST & MNIST, F-MNIST, NotMNIST & CIFAR10, SVHN, Textures, TIN, Places365, Gaussian, Uniform & KMNIST-flip \tabularnewline
+SVHN & CIFAR10, TIN & Places365, Textures, F-MNIST, KMNIST, NotMNIST, Gaussian, Uniform & MNIST, SVHN-flip \tabularnewline
+\bottomrule
+\end{tabular}
+\caption{Part I: OOD sets for each in-distribution set (2000 test images each).}
+\label{tab:p1-sets}
+\end{table}

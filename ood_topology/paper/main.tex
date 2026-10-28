@@ -1,0 +1,534 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsthm,bm}
+\usepackage{booktabs,multirow,makecell,array}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,calc,decorations.pathreplacing}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\usepackage[capitalise]{cleveref}
+\usepackage{caption,subcaption}
+
+\newtheorem{proposition}{Proposition}
+\newtheorem{definition}{Definition}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\PD}{\mathcal{D}}
+\newcommand{\Dist}{\operatorname{Dist}}
+\newcommand{\TU}{\operatorname{TU}}
+\newcommand{\pTU}{\operatorname{pTU}}
+\newcommand{\NP}{\operatorname{NP}}
+\newcommand{\SW}{\operatorname{SW}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+
+\tikzset{
+  box/.style={draw, rounded corners=2pt, fill=#1!12, minimum height=8mm, align=center, font=\small, inner sep=3pt},
+  box/.default=blue,
+  arr/.style={-{Latex[length=2mm]}, thick},
+  neuron/.style={circle, draw, fill=white, minimum size=3.2mm, inner sep=0pt},
+}
+
+\title{Topology of Neural-Network Layers for Out-of-Distribution Detection:\\
+A Unified View and Benchmark of Six Topological Approaches}
+\author{Dat Bui\\ University of Nebraska--Lincoln \\ \small Draft --- \today}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Deep classifiers are often highly confident on inputs that come from outside their training
+distribution. Topological data analysis (TDA) offers an alternative signal: instead of the
+network's output confidence, it summarizes the \emph{shape} of the network's internal activity
+with persistent homology. Several such approaches have been proposed, but they use different
+objects (weight graphs, activation graphs, Bayesian samples, point clouds of activations),
+different summaries, and different evaluation protocols. We place six of them in one framework
+--- \emph{object $\to$ filtration $\to$ persistence diagram $\to$ score} --- implement all of them
+on shared models, and evaluate them as out-of-distribution (OOD) detectors under a common
+protocol. Our study has two parts: (i) a controlled study with a Bayesian MLP trained on four
+in-distribution datasets (MNIST, Fashion-MNIST, KMNIST, SVHN), each tested against 10--12 OOD
+sets grouped into near-OOD, far-OOD and covariate shift; and (ii) the OpenOOD v1.5 CIFAR-10 and
+CIFAR-100 benchmarks with the released ResNet-18 checkpoints, where our pipeline reproduces the
+published baselines exactly. We find that (1) topology reliably detects the inputs on which
+softmax confidence fails; (2) no per-image topological score wins on every dataset, while
+point-cloud topology on small batches of inputs is consistently strong; (3) simple summaries
+($\beta_0$ curves, local $H_0$ changes) often beat richer ones (full persistent-Laplacian spectra,
+$H_1$ features); and (4) how layers are combined matters as much as the summary itself.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+A classifier trained on a fixed set of classes will still produce a prediction for an image
+from an unseen class, and often a confident one. Detecting such \emph{out-of-distribution}
+(OOD) inputs is a prerequisite for deploying neural networks in safety-critical settings, and
+has become a large research area with standardized benchmarks such as OpenOOD
+\citep{yang2022openood,zhang2023openood}.
+
+Most post-hoc OOD detectors read a scalar from the network's output or penultimate features:
+the maximum softmax probability \citep{hendrycks2017baseline}, an energy \citep{liu2020energy},
+a feature-space distance \citep{sun2022knn}. A different line of work asks what the
+\emph{topology} of the network's internal activity reveals. Rieck et al.\ \citep{rieck2019neural}
+summarize trained weights by the persistent homology of layer graphs; Lacombe et al.\
+\citep{lacombe2021topological} build one activation graph per input and layer and compare its
+persistence diagram with class-wise references; Yeh and Yang \citep{yeh2025ptu} extend this to
+Bayesian networks; persistent Laplacians \citep{wolf2025generalized,jones2025petls,botnan2024nonbranching}
+add spectral, geometric information to persistent homology; and Magai and Ayzenberg
+\citep{magai2022topology} and Purvine et al.\ \citep{purvine2023cnn} study the topology of point
+clouds of hidden activations.
+
+These approaches were proposed with different goals (model selection, uncertainty,
+interpretability), objects and evaluation protocols, so it is hard to tell which ideas are useful
+for OOD detection. This draft makes three contributions:
+\begin{itemize}
+  \item \textbf{A unified framework} (\cref{sec:framework}) that writes all six approaches as
+  \emph{object $\to$ filtration $\to$ persistence diagram $\to$ score}, with the equations and a
+  diagram for each (\cref{sec:methods}).
+  \item \textbf{A controlled multi-dataset study} (\cref{sec:phase1}): every approach on the same
+  Bayesian MLP trained on four in-distribution (ID) datasets, three seeds each, against near-OOD,
+  far-OOD and covariate-shift sets.
+  \item \textbf{A benchmark on OpenOOD v1.5} (\cref{sec:phase2}): CIFAR-10 and CIFAR-100 with the
+  released ResNet-18 checkpoints, reported next to the published post-hoc methods.
+\end{itemize}
+
+\section{Background: persistent homology and persistent Laplacians}
+\label{sec:background}
+
+\paragraph{Filtrations and persistence diagrams.}
+A \emph{filtration} is a nested family of simplicial complexes $K_{t}\subseteq K_{t'}$ for
+$t\le t'$. Persistent homology tracks the $q$-dimensional homology classes ($q=0$: connected
+components, $q=1$: loops) through the filtration. A class born at $b$ and dying at $d$ gives a
+point $(b,d)$ of the \emph{persistence diagram} $\PD_q$, a multiset in the extended plane; its
+\emph{persistence} is $|d-b|$. For a weighted graph $G=(V,E,w)$, the \emph{superlevel
+filtration} adds all vertices first and then edges in decreasing order of weight,
+\begin{equation}
+  G^{(t)} = \bigl(V,\ \{e\in E : w(e)\ge t\}\bigr), \qquad t \text{ decreasing}.
+  \label{eq:superlevel}
+\end{equation}
+Since every vertex exists from the start, only 0-dimensional features change, and each edge that
+merges two components contributes one point. These edges are exactly those of a
+\emph{maximum spanning tree} (MST) of $G$, so
+\begin{equation}
+  \PD_0(G) = \bigl\{ w(e) : e \in \mathrm{MST}(G) \bigr\},
+  \label{eq:mst}
+\end{equation}
+a multiset of $|V|-1$ real numbers (the birth of every class is the top of the filtration).
+For a point cloud $X=\{x_1,\dots,x_n\}\subset\R^d$, the \emph{Vietoris--Rips} filtration
+\begin{equation}
+  \mathrm{VR}_\varepsilon(X) = \bigl\{\sigma\subseteq X : \|x_i-x_j\|\le\varepsilon\ \ \forall x_i,x_j\in\sigma\bigr\}
+  \label{eq:rips}
+\end{equation}
+yields diagrams in every dimension; $H_0$ deaths are again MST edge lengths, now of the
+Euclidean graph on $X$.
+
+\paragraph{Distances between diagrams.}
+The $p$-Wasserstein distance between diagrams matches points optimally, allowing points to be
+matched to the diagonal $\Delta$:
+\begin{equation}
+  W_p(\PD,\PD') = \Bigl(\inf_{\gamma:\PD\cup\Delta\to\PD'\cup\Delta}\ \sum_{u}\|u-\gamma(u)\|_\infty^p\Bigr)^{1/p}.
+  \label{eq:wasserstein}
+\end{equation}
+For the 1-D diagrams of \cref{eq:mst} with a fixed number of points, the optimal matching sorts
+both multisets, so $W_2$ is the Euclidean distance between sorted vectors. The \emph{sliced
+Wasserstein} distance \citep{carriere2017sliced} averages 1-D Wasserstein distances of projections
+onto lines $\ell_\theta$:
+\begin{equation}
+  \SW(\PD,\PD') = \frac{1}{\pi}\int_{-\pi/2}^{\pi/2} W_1\bigl(\pi_\theta(\PD\cup\pi_\Delta(\PD')),\
+  \pi_\theta(\PD'\cup\pi_\Delta(\PD))\bigr)\,d\theta,
+  \label{eq:sw}
+\end{equation}
+where $\pi_\theta$ projects onto $\ell_\theta$ and $\pi_\Delta$ onto the diagonal.
+The \emph{Fréchet mean} and \emph{variance} of diagrams $\PD^{(1)},\dots,\PD^{(S)}$ are
+\begin{equation}
+  \bar\PD=\arg\min_{\PD}\sum_{s}\Dist(\PD^{(s)},\PD)^2,\qquad
+  \Var = \frac1S\sum_s \Dist(\PD^{(s)},\bar\PD)^2 .
+  \label{eq:frechet}
+\end{equation}
+For equal-size 1-D diagrams under $W_2$, $\bar\PD$ is the coordinate-wise mean of the sorted vectors.
+
+\paragraph{Persistent Laplacians.}
+Let $\partial_q^K$ be the boundary map of a complex $K$ and $\Delta_q^K = \partial_{q+1}^K
+\partial_{q+1}^{K\top} + \partial_q^{K\top}\partial_q^K$ its combinatorial Laplacian. For a pair
+$K\subseteq L$, let $C_{q+1}^{L,K}=\{c\in C_{q+1}^L : \partial_{q+1}^L c \in C_q^K\}$ and let
+$\partial_{q+1}^{L,K}$ be the restriction of $\partial^L_{q+1}$ to it. The \emph{persistent
+Laplacian} is \citep{wang2020persistent,memoli2022persistent}
+\begin{equation}
+  \Delta_q^{K,L} = \underbrace{\partial_{q+1}^{L,K}\bigl(\partial_{q+1}^{L,K}\bigr)^{\!\top}}_{\Delta_{q,\mathrm{up}}^{K,L}}
+  + \underbrace{\bigl(\partial_q^{K}\bigr)^{\!\top}\partial_q^{K}}_{\Delta_{q,\mathrm{down}}^{K}} .
+  \label{eq:pl}
+\end{equation}
+Its kernel has dimension equal to the persistent Betti number $\beta_q^{K,L}$, so it contains the
+information of persistent homology; its nonzero eigenvalues add geometric information
+\citep{memoli2022persistent}. Wolf et al.\ \citep{wolf2025generalized} prove that the up and down
+parts are stable while the full operator need not be.
+
+\section{A unified framework}
+\label{sec:framework}
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[node distance=5mm and 7mm]
+  \node[box=gray] (net) {Trained\\network $F$};
+  \node[box=blue, right=of net, yshift=8mm] (graph) {Layer graph\\weights or $|W\!\cdot\!x|$};
+  \node[box=teal, right=of net, yshift=-8mm] (cloud) {Point cloud\\of activations};
+  \node[box=orange, right=of graph] (filtg) {Superlevel\\filtration};
+  \node[box=orange, right=of cloud] (filtc) {Rips\\filtration};
+  \node[box=violet, right=15mm of $(filtg)!0.5!(filtc)$] (pd) {Persistence diagram $\PD$\\ / Laplacian spectrum};
+  \node[box=red, right=of pd] (score) {OOD score\\$s(x)$};
+  \draw[arr] (net) -- (graph); \draw[arr] (net) -- (cloud);
+  \draw[arr] (graph) -- (filtg); \draw[arr] (cloud) -- (filtc);
+  \draw[arr] (filtg) -- (pd); \draw[arr] (filtc) -- (pd); \draw[arr] (pd) -- (score);
+  \node[font=\scriptsize, align=center, below=1mm of score] {compare with\\training reference};
+  \node[font=\scriptsize, text=blue!60!black, above=0.5mm of graph] {[1] [2] [3] [4]};
+  \node[font=\scriptsize, text=teal!60!black, below=0.5mm of cloud] {[5] [6]};
+\end{tikzpicture}
+\caption{All six approaches follow one pipeline: build an object from the network, filter it,
+summarize it with a persistence diagram (or a persistent-Laplacian spectrum), and turn the
+summary into an OOD score by comparing it with what training data produce.}
+\label{fig:framework}
+\end{figure}
+
+\Cref{fig:framework} shows the common structure. Let $F:\R^{h_0}\to\R^{K}$ be an $L$-layer
+network, $x_\ell$ the input of layer $\ell$ (so $x_0=x$), and $W_\ell\in\R^{h_\ell\times
+h_{\ell-1}}$ its weights. The approaches differ in (a) the object: a bipartite layer graph or a
+point cloud; (b) whether the object depends on the input $x$; and (c) how the diagram becomes a
+score. \Cref{tab:taxonomy} summarizes them; \cref{sec:methods} gives the details.
+
+\begin{table}[t]
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}lllll@{}}
+\toprule
+& Object & Depends on $x$? & Summary & OOD score \\
+\midrule
+{[1]} NP \citep{rieck2019neural} & graph of $|W_\ell|$ & no & $\|\PD_0\|_p$ & (input-dependent variant, \S\ref{sec:np}) \\
+{[2]} TU \citep{lacombe2021topological} & graph of $|W_\ell\,x_{\ell-1}|$ & yes & $\PD_0$ (MST) & $W_2$ to class-mean $\PD_0$ \\
+{[3]} pTU \citep{yeh2025ptu} & same, $S$ posterior samples & yes & $\PD_0$ & Fréchet variance; permutation test \\
+{[4]} PL \citep{wolf2025generalized} & thresholded activation graph & yes & spectrum of $\Delta_0^{K,L}$ & distance to class-mean spectrum \\
+{[5]} Manifold \citep{magai2022topology} & point cloud per layer & set of inputs & $H_0,H_1$, intrinsic dim. & batch descriptors; local $\Delta H_0$ \\
+{[6]} CNN act.\ \citep{purvine2023cnn} & point cloud per layer & set of inputs & $\PD_0,\PD_1$ & SW to reference; layer profile \\
+\bottomrule
+\end{tabular}}
+\caption{The six approaches in the framework of \cref{fig:framework}.}
+\label{tab:taxonomy}
+\end{table}
+
+\section{The six approaches}
+\label{sec:methods}
+
+\subsection{[1] Neural persistence}
+\label{sec:np}
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \foreach \i in {0,...,3} \node[neuron] (a\i) at (0,-\i*0.6) {};
+  \foreach \j in {0,...,2} \node[neuron] (b\j) at (2,-0.3-\j*0.6) {};
+  \draw[very thick, blue!70] (a0)--(b0); \draw[thick, blue!50] (a2)--(b1); \draw[thick, blue!50] (a1)--(b0);
+  \draw[blue!30] (a3)--(b2); \draw[blue!30] (a0)--(b2); \draw[blue!20] (a3)--(b1); \draw[blue!15] (a1)--(b2);
+  \node[font=\scriptsize, align=center] at (1,0.6) {edge weight $|w|/\max|w|$};
+  \draw[arr] (2.6,-0.9) -- (3.4,-0.9);
+  \begin{scope}[shift={(4,-1.8)}]
+    \draw[->] (0,0) -- (2,0) node[right,font=\scriptsize] {death};
+    \draw[->] (0,0) -- (0,1.8) node[above,font=\scriptsize] {birth};
+    \draw[dashed,gray] (0,0) -- (1.7,1.7);
+    \foreach \d in {0.3,0.7,1.0,1.2,1.35} \fill[blue] (\d,1.6) circle (1.4pt);
+    \node[font=\scriptsize] at (1,-0.35) {points $(1,w'_e)$, $e\in$ MST};
+  \end{scope}
+  \draw[arr] (6.4,-0.9) -- (7.2,-0.9);
+  \node[box=red, font=\scriptsize] at (8.4,-0.9) {$\NP=\|\PD_0\|_p$\\(normalized)};
+\end{tikzpicture}
+\caption{[1] Neural persistence: a layer of trained weights as a bipartite graph, its 0-dimensional
+diagram (the MST weights), and the $p$-norm of the diagram.}
+\label{fig:np}
+\end{figure}
+Rieck et al.\ \citep{rieck2019neural} view layer $\ell$ as the complete bipartite graph
+$G_\ell=(V_{\ell-1}\sqcup V_\ell,E_\ell)$ with weights normalized over the whole network,
+\begin{equation}
+  w'(i,j) = \frac{|W_\ell(j,i)|}{\max_{\ell',i',j'}|W_{\ell'}(j',i')|}\in[0,1].
+\end{equation}
+Under the superlevel filtration (\cref{eq:superlevel}) every vertex is born at $1$ and every MST
+edge $e$ kills a component at $w'_e$, giving $\PD_0(G_\ell)=\{(1,w'_e)\}$. Neural persistence is
+\begin{equation}
+  \NP(G_\ell) = \|\PD_0(G_\ell)\|_p = \Bigl(\sum_{e\in\mathrm{MST}(G_\ell)} (1-w'_e)^p\Bigr)^{1/p},
+  \qquad 0\le \NP(G_\ell)\le (1-\min_e w'_e)\,(|V_\ell|-1)^{1/p},
+  \label{eq:np}
+\end{equation}
+normalized by the upper bound and averaged over layers. $\NP$ depends only on the weights, so it
+assigns the same value to every input and cannot rank inputs (AUROC $=50$ by construction).
+\emph{Adaptation.} We apply \cref{eq:np} to the input-dependent activation graph of [2]
+(\cref{eq:actgraph}) and score $s(x)=|\NP(x)-\mu_{k}|/\sigma_{k}$, where $(\mu_k,\sigma_k)$ are the
+training statistics of the predicted class $k=\arg\max F(x)$.
+
+\subsection{[2] Topological uncertainty}
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[font=\scriptsize] at (-0.6,-0.9) {$x$};
+  \draw[arr] (-0.4,-0.9) -- (-0.1,-0.9);
+  \foreach \i in {0,...,3} \node[neuron, fill=orange!\the\numexpr 20+20*\i\relax] (a\i) at (0.3,-\i*0.6) {};
+  \foreach \j in {0,...,2} \node[neuron] (b\j) at (2.1,-0.3-\j*0.6) {};
+  \draw[very thick, orange!80] (a3)--(b2); \draw[thick, orange!60] (a2)--(b1); \draw[thick, orange!50] (a3)--(b0);
+  \draw[orange!25] (a0)--(b0); \draw[orange!30] (a1)--(b2); \draw[orange!20] (a0)--(b1);
+  \node[font=\scriptsize] at (1.2,0.6) {$|W_\ell(j,i)\,x_{\ell-1}(i)|$};
+  \draw[arr] (2.6,-0.9) -- (3.3,-0.9) node[midway,above,font=\scriptsize] {MST};
+  \node[font=\scriptsize, align=center] at (4.4,-0.9) {$\PD_\ell(x)$\\sorted MST\\weights};
+  \draw[arr] (5.4,-0.9) -- (6.0,-0.9);
+  \node[box=red, font=\scriptsize] at (7.6,-0.9) {$W_2\bigl(\PD_\ell(x),\ \bar\PD_{\ell,k(x)}^{\mathrm{train}}\bigr)$\\averaged over $\ell$};
+\end{tikzpicture}
+\caption{[2] Topological uncertainty: one activation graph per input and layer; its diagram is
+compared with the Fréchet mean of training diagrams of the predicted class.}
+\label{fig:tu}
+\end{figure}
+Lacombe et al.\ \citep{lacombe2021topological} weight the edges of layer $\ell$ by how much input
+$x$ uses them,
+\begin{equation}
+  w_x(i,j) = |W_\ell(j,i)\,x_{\ell-1}(i)| ,
+  \label{eq:actgraph}
+\end{equation}
+which gives one \emph{activation graph} $G_\ell(x)$ per input and layer. Its diagram
+$\PD_\ell(x)$ is the multiset of its $N_\ell=h_{\ell-1}+h_\ell-1$ MST weights (\cref{eq:mst}). For
+each class $k$, the reference $\bar\PD^{\mathrm{train}}_{\ell,k}$ is the Fréchet mean
+(\cref{eq:frechet}) of the training diagrams predicted as $k$, and
+\begin{equation}
+  \TU(x) = \frac{1}{L}\sum_{\ell=1}^{L} W_2\bigl(\PD_\ell(x),\ \bar\PD^{\mathrm{train}}_{\ell,k(x)}\bigr),
+  \qquad k(x)=\arg\max_k F(x)_k .
+  \label{eq:tu}
+\end{equation}
+\emph{Variant (ours).} The layer distances live on different scales, so the plain average is
+dominated by the largest. \emph{TU-rescaled} divides each layer's distance by its mean over
+training inputs before averaging.
+
+\subsection{[3] Predictive topological uncertainty}
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[font=\scriptsize] at (-0.3,0) {$x$};
+  \foreach \s/\c in {0/blue,1/teal,2/violet} {
+    \node[box=\c, font=\scriptsize, minimum height=5mm] (g\s) at (1.6,0.7-\s*0.7) {$G_\ell(x,\theta_{\s})$};
+    \draw[arr] (0,0) -- (g\s.west);
+    \node[font=\scriptsize] (d\s) at (3.6,0.7-\s*0.7) {$\PD_\ell^{(\s)}$};
+    \draw[arr] (g\s.east) -- (d\s.west);
+  }
+  \node[font=\scriptsize] at (1.6,-1.3) {$\theta_s\sim q(\theta\mid\mathcal{D}_{\mathrm{train}}),\ s=1..S$};
+  \draw[decorate,decoration={brace,amplitude=4pt}] (4.0,0.9) -- (4.0,-1.6);
+  \node[box=red, font=\scriptsize] at (6.0,-0.35) {Fréchet variance\\$\frac1L\sum_\ell\Var_s\bigl(\PD_\ell^{(s)}\bigr)$};
+\end{tikzpicture}
+\caption{[3] pTU: the activation-graph diagrams of $S$ posterior samples of a Bayesian network;
+their spread is the uncertainty.}
+\label{fig:ptu}
+\end{figure}
+For a Bayesian network with (approximate) posterior $q(\theta\mid\mathcal{D}_{\mathrm{train}})$,
+Yeh and Yang \citep{yeh2025ptu} draw $\theta_1,\dots,\theta_S$ and build $G_\ell(x,\theta_s)$ as in
+\cref{eq:actgraph}, each with diagram $\PD^{(s)}_\ell(x)$. The predictive topological uncertainty is
+the posterior Fréchet variance averaged over layers,
+\begin{equation}
+  \pTU(x) = \frac1L\sum_{\ell=1}^{L} \frac1S\sum_{s=1}^{S} W_2\bigl(\PD_\ell^{(s)}(x),\ \bar\PD_\ell(x)\bigr)^2 .
+  \label{eq:ptu}
+\end{equation}
+At the dataset level, the paper tests $H_0: P_{\mathrm{test}}=P_{\mathrm{train}}$ with a
+permutation test whose statistic is the empirical Wasserstein distance between the pTU values of
+$m$ training and $m$ test inputs,
+$T = \bigl(\sum_{i=1}^{m}|Y_{(i)}-Z_{(i)}|^p\bigr)^{1/p}$, with order statistics $Y_{(i)},Z_{(i)}$.
+\emph{Posterior.} For the MLP we train with Bayes-by-Backprop \citep{blundell2015weight}; for the
+ResNet-18 checkpoints we use a diagonal last-layer Laplace approximation
+\citep{daxberger2021laplace}, $q(W)=\mathcal{N}\bigl(W^\star,\,(\tau I+\mathrm{diag}\,\mathrm{GGN})^{-1}\bigr)$,
+with the prior precision $\tau$ chosen on the validation set. \emph{Variant (ours).}
+\emph{pTU two-sided} scores $|\log\pTU(x)-\mathrm{median}_{\mathrm{train}}\log\pTU|$, because we
+find that OOD inputs can have \emph{lower} pTU than training data.
+
+\subsection{[4] Persistent Laplacian}
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \foreach \t/\xo/\lab in {0/0/{t_1},1/2.6/{t_2},2/5.2/{t_3}} {
+    \begin{scope}[shift={(\xo,0)}]
+      \foreach \i in {0,...,3} \node[neuron, minimum size=2.4mm] (a\t\i) at (0,-\i*0.45) {};
+      \foreach \j in {0,...,2} \node[neuron, minimum size=2.4mm] (b\t\j) at (1.2,-0.2-\j*0.45) {};
+      \node[font=\scriptsize] at (0.6,0.45) {$K_{\lab}$};
+    \end{scope}
+  }
+  \draw[thick] (a00)--(b00);
+  \draw[thick] (a10)--(b10); \draw[thick] (a12)--(b11); \draw[thick] (a11)--(b10);
+  \draw[thick] (a20)--(b20); \draw[thick] (a22)--(b21); \draw[thick] (a21)--(b20); \draw[thick] (a23)--(b22); \draw[thick] (a20)--(b22);
+  \node[font=\scriptsize, align=center] at (3.8,-2.0) {$t_1>t_2>t_3$:\quad spectrum of $L(K_t)$: \ \#zeros $=\beta_0(K_t)$, nonzero $\lambda$'s = geometry};
+\end{tikzpicture}
+\caption{[4] Persistent Laplacian on the activation graph: in dimension 0 with all vertices born
+first, $\Delta_0^{K_s,K_t}$ is the graph Laplacian of $K_t$.}
+\label{fig:pl}
+\end{figure}
+\begin{proposition}
+\label{prop:pl}
+Let $K_t$ be the superlevel filtration (\cref{eq:superlevel}) of a graph whose vertices are all
+present at the start. For $K_s\subseteq K_t$, $\Delta_0^{K_s,K_t} = L(K_t) = D_t - A_t$, the
+combinatorial graph Laplacian of $K_t$. For a bipartite graph, $\Delta_q^{K_s,K_t}=0$ for $q\ge1$.
+\end{proposition}
+\begin{proof}[Sketch]
+$\Delta_{0,\mathrm{down}}=0$ since $\partial_0=0$. Every edge of $K_t$ has both endpoints in
+$V=V(K_s)$, so $C_1^{K_t,K_s}=C_1^{K_t}$ and $\Delta_{0,\mathrm{up}}^{K_s,K_t}=\partial_1^{K_t}\partial_1^{K_t\top}=L(K_t)$.
+A bipartite graph has no triangles, so there are no 2-simplices and no 1-cycles bound by them.
+\end{proof}
+Hence the zero eigenvalues of $L(K_t)$ count $\beta_0(K_t)$, which is the information of the
+diagram of [2], while the nonzero eigenvalues are what the persistent Laplacian adds. For three
+thresholds $t$ (quantiles of training MST weights) we use
+$\phi_t(x)=\bigl(\beta_0,\ |E(K_t)|,\ \lambda_{\min}^{+},\ \lambda_{\max},\ \mathrm{std}(\lambda^{+})\bigr)$
+and score
+\begin{equation}
+  s_{\mathrm{PL}}(x) = \frac{1}{|\mathcal{T}|\,|\phi|}\sum_{\ell,t}\Bigl\|\frac{\phi_{\ell,t}(x)-\mu_{\ell,t,k(x)}}{\sigma_{\ell,t}}\Bigr\|_2^2 ,
+  \label{eq:pl-score}
+\end{equation}
+with class-wise means $\mu$ and standard deviations $\sigma$ from training data. Using only the
+$\beta_0$ coordinate isolates the persistent-homology part.
+
+\subsection{[5] Topology and geometry of the data manifold}
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \foreach \l/\xo/\r in {1/0/0.9,2/2.6/0.6,3/5.2/0.35} {
+    \begin{scope}[shift={(\xo,0)}]
+      \draw[gray!50] (0,0) circle (\r);
+      \foreach \a in {0,40,...,320} \fill[teal] ({\r*cos(\a)+0.05*rand},{\r*sin(\a)+0.05*rand}) circle (1.2pt);
+      \node[font=\scriptsize] at (0,-1.15) {layer \l: $X_\l$};
+    \end{scope}
+  }
+  \draw[arr] (1.1,0) -- (1.9,0); \draw[arr] (3.4,0) -- (4.5,0);
+  \node[font=\scriptsize, align=center] at (2.6,1.35) {Rips persistence $H_0,H_1$ and intrinsic dimension per layer};
+\end{tikzpicture}
+\caption{[5] Each layer maps a set of inputs to a point cloud; its topology and dimension are
+tracked across layers.}
+\label{fig:manifold}
+\end{figure}
+For inputs $x_1,\dots,x_n$ and layer $\ell$, Magai and Ayzenberg \citep{magai2022topology} study
+$X_\ell=\{h_\ell(x_1),\dots,h_\ell(x_n)\}\subset\R^{h_\ell}$ (for convolutional layers, spatially
+averaged), its Rips diagrams $\PD_0,\PD_1$ (\cref{eq:rips}), the \emph{total persistence}
+$P_q(X_\ell)=\sum_{(b,d)\in\PD_q}(d-b)$ and an intrinsic-dimension estimate; we use TwoNN
+\citep{facco2017twonn},
+\begin{equation}
+  \hat m(X) = \frac{n}{\sum_{i=1}^{n}\log\bigl(r_2(x_i)/r_1(x_i)\bigr)},
+  \label{eq:twonn}
+\end{equation}
+with $r_1,r_2$ the distances to the two nearest neighbours. \emph{Batch score.} A batch of $m$
+inputs gives $\psi=\bigl(P_0,P_1,\hat m\bigr)_{\ell=1..L}$, scored by its mean squared $z$-score
+against training batches of the same size. \emph{Per-image adaptation (ours).} For an input $x$
+let $N_k(x)$ be its $k$ nearest training points in layer $\ell$; the local change
+\begin{equation}
+  \Delta P_0^{\ell}(x) = P_0\bigl(N_k(x)\cup\{h_\ell(x)\}\bigr) - P_0\bigl(N_k(x)\bigr)
+  \label{eq:local}
+\end{equation}
+is the increase of the minimum-spanning-tree length when $x$ joins its neighbourhood; the score
+is the mean squared $z$-score of $(\Delta P_0^{\ell})_\ell$.
+
+\subsection{[6] Topology of CNN activations}
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \foreach \l/\xo in {1/0,2/2.8,3/5.6} {
+    \node[box=teal, font=\scriptsize, minimum width=1.4cm] (p\l) at (\xo,0) {$\PD(X_\l)$};
+  }
+  \draw[<->, thick] (p1) -- (p2) node[midway,above,font=\scriptsize] {$\SW$};
+  \draw[<->, thick] (p2) -- (p3) node[midway,above,font=\scriptsize] {$\SW$};
+  \foreach \l/\xo in {1/0,2/2.8,3/5.6} {
+    \node[box=gray, font=\scriptsize, minimum width=1.4cm] (r\l) at (\xo,-1.2) {$\PD(X^{\mathrm{train}}_\l)$};
+    \draw[<->, thick, red!70] (p\l) -- (r\l) node[midway,right,font=\scriptsize] {$\SW$};
+  }
+\end{tikzpicture}
+\caption{[6] Diagrams of every layer, compared across layers (Purvine et al.'s layer profile) and
+with reference diagrams of training batches (our OOD score).}
+\label{fig:sw}
+\end{figure}
+Purvine et al.\ \citep{purvine2023cnn} represent each image at a convolutional layer by the channel
+vector at the spatial position of largest activation norm, compute the Rips diagrams of the
+resulting point cloud, and compare layers with the sliced Wasserstein distance (\cref{eq:sw}).
+We use two batch scores: the distance to reference diagrams,
+$s_{\SW}(B)=\frac{1}{2L}\sum_{\ell,q}z\bigl(\frac1R\sum_{r}\SW(\PD_q(X_\ell^{B}),\PD_q(X_\ell^{r}))\bigr)$
+over $R$ training batches, and the \emph{layer profile}
+$\bigl(\SW(\PD_q(X_\ell^B),\PD_q(X_{\ell+1}^B))\bigr)_{\ell,q}$ scored by its squared $z$-score.
+
+\section{Experimental protocol}
+\label{sec:protocol}
+\paragraph{Metrics.} Following OpenOOD \citep{zhang2023openood}, OOD is the positive class. We report
+AUROC and FPR@95 (the fraction of ID inputs flagged at the threshold that detects 95\% of OOD
+inputs); each is computed per OOD set and averaged within the near-OOD and far-OOD groups. All
+numbers are means (± std) over three training seeds or checkpoints.
+\paragraph{Per-image and batch settings.} The standard setting scores one input at a time. Since
+[3], [5] and [6] are defined on sets of inputs, we also score batches of $m\in\{10,20\}$ inputs
+drawn from a single source and report AUROC over batches.
+\paragraph{Baselines.} MSP \citep{hendrycks2017baseline}, energy (EBO) \citep{liu2020energy}, max
+logit (MLS) \citep{hendrycks2022scaling}, KNN \citep{sun2022knn}, ViM \citep{wang2022vim}, and the
+Bayesian mutual information of the predictive distribution.
+
+\section{Part I: a controlled study across in-distribution datasets}
+\label{sec:phase1}
+\paragraph{Setup.} We use the Bayesian MLP 784--64--16--10 of \citep{yeh2025ptu}, trained with
+Bayes-by-Backprop (scale-mixture prior $\sigma_1=1,\sigma_2=0.007$, KL term scaled by $0.1$, early
+stopping with patience 25), on four ID datasets, all grayscale $28\times28$ in $[0,1]$. OOD sets
+come from OpenOOD's MNIST benchmark (NotMNIST, Fashion-MNIST, Textures, CIFAR-10, TinyImageNet,
+Places365) plus SVHN, KMNIST, Gaussian and uniform noise; covariate-shift sets are MNIST-C
+\citep{mu2019mnistc} and pixel-flip corruptions \citep{lacombe2021topological}. \Cref{tab:p1-sets}
+lists the groups.
+
+\input{tables/p1_sets.tex}
+\input{tables/p1_main.tex}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/summary_phase1.png}
+\caption{Per-image AUROC of every approach for each ID dataset and OOD group (mean over 3 seeds).}
+\label{fig:p1-heat}
+\end{figure}
+
+\input{tables/p1_batch.tex}
+
+\paragraph{Findings.}
+\input{tables/p1_findings.tex}
+
+\section{Part II: OpenOOD v1.5 CIFAR benchmarks}
+\label{sec:phase2}
+\paragraph{Setup.} We use the OpenOOD v1.5 benchmarks and the released ResNet-18 checkpoints
+(three per benchmark): CIFAR-10 (near-OOD: CIFAR-100, TinyImageNet; far-OOD: MNIST, SVHN,
+Textures, Places365) and CIFAR-100 (near-OOD: CIFAR-10, TinyImageNet; same far-OOD), with
+OpenOOD's image lists, preprocessing and metrics. ResNet-18 has a single dense layer, so the
+graph-based methods [1]--[4] use the activation graph of $\mathrm{fc}:\R^{512}\to\R^{K}$; the
+point-cloud methods [5]--[6] use the four residual stages and the pooled features. Methods marked
+$\dagger$ are evaluated on a fixed subsample of 2000 images per test set (1000 for [4]).
+\paragraph{Reproducing the baselines.} Our pipeline reproduces the published OpenOOD v1.5 numbers of
+MSP, EBO, MLS and KNN to two decimals, and ViM within one point (\cref{tab:p2-main}), so the
+topological methods are evaluated on exactly the published setting.
+
+\input{tables/p2_main.tex}
+
+\paragraph{Findings.}
+\input{tables/p2_findings.tex}
+
+\section{Discussion}
+\label{sec:discussion}
+\paragraph{What topology adds.} Across both parts, the inputs on which softmax confidence fails
+(natural images, textures and noise that the network classifies confidently) are exactly where
+topological scores help most. The signal comes from the \emph{activation pattern} of an input,
+not from its prediction.
+\paragraph{Simple versus rich summaries.} The 0-dimensional information (MST weights, $\beta_0$
+curves, local $H_0$ changes) carries most of the signal. Higher-dimensional features ($H_1$) and
+the nonzero persistent-Laplacian eigenvalues add little or hurt on these graphs, which are small,
+unweighted and triangle-free after thresholding.
+\paragraph{Layers.} The first layer of the MLP is the most informative for [2]--[4], while the
+published methods average layers equally; rescaling the layers improves TU by about 8 AUROC
+points in Part I.
+\paragraph{Limitations.} Part I uses one small MLP and grayscale data; Part II uses only the last
+dense layer of ResNet-18 for [1]--[4] and a last-layer Laplace posterior for [3]. Several scores
+are our adaptations (per-input NP, local $\Delta H_0$, TU-rescaled, two-sided pTU, $\beta_0$ only)
+and are marked as such. The local $\Delta H_0$ score is closely related to nearest-neighbour
+distances, so its strength should not be attributed to higher-order topology.
+
+\section{Conclusion}
+We placed six topological approaches to analysing neural-network layers in one framework,
+implemented them on shared models and evaluated them as OOD detectors on four ID datasets and on
+the OpenOOD CIFAR benchmarks. Topology reliably catches the confident mistakes that output-based
+scores miss, but no single per-image topological score wins everywhere; batch-level point-cloud
+topology and simple 0-dimensional summaries are the most robust.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}

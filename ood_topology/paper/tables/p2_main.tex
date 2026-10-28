@@ -1,0 +1,42 @@
+\begin{table}[t]
+\centering
+\setlength{\tabcolsep}{4pt}\small
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+ & \multicolumn{2}{c}{CIFAR-10} & \multicolumn{2}{c}{CIFAR-100} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+Method & Near & Far & Near & Far \\
+\midrule
+\multicolumn{5}{@{}l}{\emph{Published (OpenOOD v1.5, Table 2)}} \\
+MSP & 88.03 & 90.73 & 80.27 & 77.76 \\
+EBO & 87.58 & 91.21 & 80.91 & 79.77 \\
+MLS & 87.52 & 91.10 & 81.05 & 79.67 \\
+KNN & 90.64 & 92.96 & 80.18 & 82.40 \\
+VIM & 88.68 & 93.48 & 74.98 & 81.70 \\
+ReAct & 87.11 & 90.42 & 80.77 & 80.39 \\
+ASH & 75.27 & 78.49 & 78.20 & 80.58 \\
+RMDS & 89.80 & 92.20 & 80.15 & 82.92 \\
+ODIN & 82.87 & 87.96 & 79.90 & 79.28 \\
+MDS & 84.20 & 89.72 & 58.69 & 69.39 \\
+\midrule
+\multicolumn{5}{@{}l}{\emph{This work (same checkpoints)}} \\
+{MSP (ours)} & 88.03\,{\scriptsize$\pm$0.25} & 90.73\,{\scriptsize$\pm$0.43} & 80.27\,{\scriptsize$\pm$0.11} & 77.76\,{\scriptsize$\pm$0.44} \\
+{EBO (ours)} & 87.58\,{\scriptsize$\pm$0.46} & 91.21\,{\scriptsize$\pm$0.92} & 80.91\,{\scriptsize$\pm$0.08} & 79.77\,{\scriptsize$\pm$0.61} \\
+{MLS (ours)} & 87.52\,{\scriptsize$\pm$0.47} & 91.10\,{\scriptsize$\pm$0.89} & 81.05\,{\scriptsize$\pm$0.07} & 79.67\,{\scriptsize$\pm$0.57} \\
+{KNN (ours)} & 90.64\,{\scriptsize$\pm$0.20} & 92.96\,{\scriptsize$\pm$0.14} & 80.18\,{\scriptsize$\pm$0.15} & 82.40\,{\scriptsize$\pm$0.17} \\
+{ViM (ours)} & 88.73\,{\scriptsize$\pm$0.43} & 93.27\,{\scriptsize$\pm$0.20} & 75.92\,{\scriptsize$\pm$0.16} & 82.14\,{\scriptsize$\pm$0.65} \\
+\midrule
+{Mutual information (Laplace)$^\dagger$} & -- & -- & -- & -- \\
+\midrule
+{[1] NP (per input)} & -- & -- & -- & -- \\
+{[2] TU} & -- & -- & -- & -- \\
+{[3] pTU (Laplace)$^\dagger$} & -- & -- & -- & -- \\
+{[3] pTU two-sided$^\dagger$} & -- & -- & -- & -- \\
+{[4] PL, full spectrum$^\dagger$} & -- & -- & -- & -- \\
+{[4] PL, $\beta_0$ only$^\dagger$} & -- & -- & -- & -- \\
+{[5] local $\Delta H_0$$^\dagger$} & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\caption{Part II, OpenOOD v1.5 CIFAR benchmarks with the released ResNet-18 checkpoints: per-image AUROC (\%, mean $\pm$ std over 3 checkpoints). The published rows are copied from OpenOOD v1.5; our re-implementations of the same baselines reproduce them. $^\dagger$ = fixed subsample of 2000 images per test set (1000 for [4]).}
+\label{tab:p2-main}
+\end{table}

@@ -5,3 +5,4 @@ ood_topology/cache/data_*.pt
 ood_topology/cache/pd_*.pt
 ~$*
 ood_topology/cache/phase1/*/pd_*.pt
+ood_topology/cache/phase2/

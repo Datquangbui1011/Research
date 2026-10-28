@@ -1,0 +1,25 @@
+\begin{table}[t]
+\centering
+\setlength{\tabcolsep}{2.5pt}\scriptsize
+\begin{tabular}{@{}clcccccccccccc@{}}
+\toprule
+ & & \multicolumn{3}{c}{MNIST} & \multicolumn{3}{c}{F-MNIST} & \multicolumn{3}{c}{KMNIST} & \multicolumn{3}{c}{SVHN} \\
+\cmidrule(lr){3-5}\cmidrule(lr){6-8}\cmidrule(lr){9-11}\cmidrule(lr){12-14}
+$m$ & Method & N & F & S & N & F & S & N & F & S & N & F & S \\
+\midrule
+\multirow{5}{*}{10} & {MSP (batch mean)} & 93 & 79 & \textbf{93} & 91 & 33 & 89 & 90 & 86 & 91 & 79 & 70 & 44 \\
+ & {[2] TU (batch mean)} & \textbf{98} & 99 & 84 & 99 & 90 & 87 & 89 & 98 & 74 & 59 & 73 & 61 \\
+ & {[5] $P_0,P_1$, intrinsic dim.} & 87 & \textbf{99} & 83 & 99 & 99 & \textbf{100} & 98 & 100 & \textbf{100} & 91 & \textbf{96} & \textbf{93} \\
+ & {[6] SW to reference} & 83 & 98 & 82 & \textbf{99} & \textbf{99} & 100 & \textbf{98} & \textbf{100} & 100 & \textbf{92} & 95 & 88 \\
+ & {[6] layer profile} & 80 & 95 & 77 & 95 & 95 & 92 & 86 & 92 & 93 & 70 & 86 & 85 \\
+\midrule
+\multirow{5}{*}{20} & {MSP (batch mean)} & 98 & 83 & \textbf{98} & 95 & 29 & 96 & 95 & 92 & 97 & 86 & 70 & 46 \\
+ & {[2] TU (batch mean)} & \textbf{100} & 99 & 90 & 100 & 94 & 94 & 93 & 100 & 80 & 63 & 74 & 56 \\
+ & {[5] $P_0,P_1$, intrinsic dim.} & 97 & 100 & 89 & \textbf{100} & \textbf{100} & \textbf{100} & 100 & \textbf{100} & \textbf{100} & \textbf{100} & \textbf{99} & \textbf{100} \\
+ & {[6] SW to reference} & 98 & \textbf{100} & 88 & 100 & 100 & \textbf{100} & \textbf{100} & \textbf{100} & \textbf{100} & 99 & 98 & 96 \\
+ & {[6] layer profile} & 92 & 99 & 79 & 98 & 98 & 98 & 93 & 97 & 92 & 84 & 94 & 88 \\
+\bottomrule
+\end{tabular}
+\caption{Part I, batch-level detection: AUROC (\%) over batches of $m$ images from one source (N = near-OOD, F = far-OOD, S = covariate shift; mean over 3 seeds).}
+\label{tab:p1-batch}
+\end{table}

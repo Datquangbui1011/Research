@@ -1,0 +1,8 @@
+[MNIST] trained: 0.9711 0.9708 0.9733 0.9735 0.9718 0.9718 
+[MNIST] seed 0 done
+[MNIST] seed 1 done
+[MNIST] seed 2 done
+[FashionMNIST] trained: 0.8737 0.8741 0.8719 0.8708 0.8716 0.8718 
+[FashionMNIST] seed 0 done
+[FashionMNIST] seed 1 done
+[FashionMNIST] seed 2 done

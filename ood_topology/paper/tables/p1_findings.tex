@@ -1,0 +1,24 @@
+\begin{itemize}
+  \item \textbf{Softmax confidence is the weakest useful score.} MSP averages 70.0 / 62.9 / 65.0
+  AUROC (near / far / shift) over the four ID sets and is unstable across seeds. It falls below
+  chance where the network is confidently wrong: far-OOD for Fashion-MNIST (48.3), MNIST digits for
+  the SVHN model (31.9).
+  \item \textbf{No per-image topological score wins on every ID set.} The local $\Delta H_0$ score
+  of [5] is best on average (84.6 / 89.2 / 89.1) but drops to 67.7 on KMNIST near-OOD, where simpler
+  images (MNIST digits, Gaussian noise) lie \emph{closer} to the training data than real KMNIST test
+  images; the plain $k$-NN distance fails in the same way. The graph-based scores [2] and [4] are
+  strong for the three handwriting/clothing datasets but fall to chance for SVHN near-OOD, where
+  natural photos produce activation graphs like those of house-number photos.
+  \item \textbf{Activation-graph topology needs a well-trained model.} The graph-based scores degrade
+  together with test accuracy (97\% MNIST $\to$ 67\% SVHN), consistent with the observation of
+  \citep{yeh2025ptu} that a weak SVHN model ``did not activate enough neurons''.
+  \item \textbf{pTU is not one-directional.} For Fashion-MNIST and KMNIST, OOD inputs such as MNIST
+  digits and Gaussian noise have \emph{lower} posterior variance than ID inputs (AUROC 17--25), so
+  the one-sided score ranks them backwards. Its permutation test keeps the nominal false-alarm rate
+  for MNIST (3--5\%) but not for KMNIST (up to 28\%).
+  \item \textbf{Layer weighting matters.} Rescaling the layer distances of TU before averaging adds
+  2--11 AUROC points on every ID set.
+  \item \textbf{Batches of inputs are easy for point-cloud topology.} With $m=20$ images, [5] and
+  [6] reach $\ge97$ AUROC on every ID set and OOD group except MNIST covariate shift (88--89)
+  (\cref{tab:p1-batch}).
+\end{itemize}
